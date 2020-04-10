@@ -24,9 +24,42 @@ About an ETL pipeline for a data lake hosted on S3.
         - [Sparkify Analytical](#Sparkify-Analytical)
    - [Web-links](#web-links)
 
+
+---
+## TODO  
+to create high grade data pipelines that are dynamic and built from reusable tasks, can be monitored, and allow easy backfills  
+* pipelines de données 
+    * dynamiques
+    * construits à partir de tâches réutilisables, 
+    * qui puissent être surveillés et 
+    * qui permettent un remplissage facile
+    * souhaitent effectuer des tests sur leurs ensembles de données après l'exécution des étapes de l'ETL afin de détecter toute divergence dans les ensembles de données.
+* créer vos propres opérateurs personnalisés pour effectuer des tâches :
+    * telles que la mise en scène des données, 
+    * le remplissage de l'entrepôt de données et 
+    * l'exécution de contrôles sur les données en tant qu'étape finale.  
+* fourni un modèle de projet 
+    * qui prend en charge toutes les importations et 
+    * fournit quatre opérateurs vides qui doivent être mis en œuvre dans les éléments fonctionnels d'un pipeline de données. 
+* Le modèle contient également un ensemble de tâches qui doivent être liées pour obtenir un flux de données cohérent et sensé dans le pipeline.
+* Vous disposerez d'une classe d'assistants qui contient toutes les transformations SQL. Ainsi, vous n'aurez pas besoin d'écrire l'ETL vous-même, mais vous devrez l'exécuter avec vos opérateurs personnalisés.
+![DAG](image/example-dag.png)
+## DONE
+* set Docker
+    * create docker-compose.yml
+---
+
 ## About The Project
+> A music streaming company, Sparkify, has decided that it is time to introduce more automation and monitoring to their data warehouse ETL pipelines and come to the conclusion that the best tool to achieve this is Apache Airflow.  
 
 ## Purpose
+
+The purpose of this project is to build an ETL pipeline with Airflow. The source data resides in s3 and need to be processes in Sparkify's data warehouse in Amazon Redshift. The data pipeline should be:
+* dynamic
+* build from reusable tasks
+* can be monitored
+* allow backfills
+* run tests after the ETL steps have been executed. 
 
 ## Getting Started
 
@@ -37,6 +70,38 @@ About an ETL pipeline for a data lake hosted on S3.
 ##### Log Dataset
 
 ## To Run localy
+* sudo systemctl start docker
+docker images
+docker rmi -f $(docker images -qa)
+docker stop $(docker ps -a -q) 
+docker rm $(docker ps -a -q)
+dud: docker-compose up -d
+docker-compose up -d --build: build the image if changes
+Check http://localhost:8080/
+
+    docker-compose logs - Displays log output
+    docker-compose ps - List containers
+    docker-compose down - Stop containers
+
+If you want to run airflow sub-commands, you can do so like this:
+
+    docker-compose run --rm webserver airflow list_dags - List dags
+    docker-compose run --rm webserver airflow test [DAG_ID] [TASK_ID] [EXECUTION_DATE] - Test specific task
+
+If you want to run/test python script, you can do so like this:
+
+    docker-compose run --rm webserver python /usr/local/airflow/dags/[PYTHON-FILE].py - Test python script
+
+If you want to use Ad hoc query, make sure you've configured connections: Go to Admin -> Connections and Edit "postgres_default" set this values:
+
+    Host : postgres
+    Schema : airflow
+    Login : airflow
+    Password : airflow
+
+
+
+
 
 ### Setup Docker
 
