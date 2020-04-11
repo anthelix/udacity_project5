@@ -1,35 +1,39 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
+import datetime
 import os
 from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.python_operator import PythonOperator
+from airflow.operators.postgres_operator import PostgresOperator
 from airflow.operators import (StageToRedshiftOperator, LoadFactOperator,
                                 LoadDimensionOperator, DataQualityOperator)
 from helpers import SqlQueries
+from helpers import CreateTables
 
 # AWS_KEY = os.environ.get('AWS_KEY')
 # AWS_SECRET = os.environ.get('AWS_SECRET')
 
 # my varaiables
+WORKFLOW_RETRY_DELAY = timedelta(minutes=5)
+WORKFLOW_SCHEDULE_INTERVAL = '@daily'
+WORKFLOW_START_DATE = datetime.datetime.utcnow()
 
-WORKFLOW_START_DATE = datetime(2019, 1, 12)
+WORKFLOW_DAG_ALERT = ['airflow@example.com']
+WORKFLOW_DAG_CATCHUP = False
+WORKFLOW_DAG_DESCRIPTION = 'Extract data from s3, Transform and Load in Redshift'
 WORKFLOW_DAG_ID = 'sparkify_dag'
-WORFLOW_DAG_DESCRIPTION = 'Extract data from s3, Transform and Load in Redshift'
-WORFLOW_SCHEDULE_INTERVAL = '@daily'
-WORFLOW_RETRY_DELAY = timedelta(minutes=5)
-WORFLOW_DAG_ALERT = ['airflow@example.com']
 
 WORKFLOW_DEFAULT_ARGS = {
-    'owner': 'airflow',
-    # = True a la fin du projet
+    'owner': 'dend_stephanie',
     'depends_on_past': False,
     # a definir depuis la date des premiers fichiers
     'start_date': WORKFLOW_START_DATE,
     # ecrire une tache pour envoie de mail, faire un test et capture d'ecran
-    'email': WORFLOW_DAG_ALERT,
-    'email_on_failure': True,
-    'email_on_retry': False,
+    #'email': WORKFLOW_DAG_ALERT,
+    #'email_on_failure': True,
+    #'email_on_retry': False,
     'retries': 3,
-    'retry_delay': WORFLOW_RETRY_DELAY ,
+    'retry_delay': WORKFLOW_RETRY_DELAY ,
     # 'queue': 'bash_queue',
     # 'pool': 'backfill',
     # 'priority_weight': 10,
@@ -48,15 +52,32 @@ WORKFLOW_DEFAULT_ARGS = {
 dag = DAG(
     dag_id=                 WORKFLOW_DAG_ID,
     default_args=           WORKFLOW_DEFAULT_ARGS,
-    description=            WORFLOW_DAG_DESCRIPTION,
-    schedule_interval=      WORFLOW_SCHEDULE_INTERVAL 
+    description=            WORKFLOW_DAG_DESCRIPTION,
+    schedule_interval=      WORKFLOW_SCHEDULE_INTERVAL, 
+    catchup=                WORKFLOW_DAG_CATCHUP
 )
 
 # Download_data > send_data_to_processing > momitor_processinf > generate_report > send_email
 
 
-start_operator = DummyOperator(task_id='Begin_execution',  dag=dag)
+start_operator = DummyOperator(task_id='Begin_execution', dag=dag)
 
+# Create Staging tables
+create_staging_events = PostgresOperator(
+    task_id="create_staging_events",
+    dag=dag,
+    postgres_conn_id="redshift",
+    sql=CreateTables.staging_events_table_create
+)
+
+create_staging_songs = PostgresOperator(
+    task_id="create_staging_songs",
+    dag=dag,
+    postgres_conn_id="redshift",
+    sql=CreateTables.staging_songs_table_create
+)
+
+# Download_data
 stage_events_to_redshift = StageToRedshiftOperator(
     task_id='Stage_events',
     dag=dag
@@ -67,6 +88,8 @@ stage_songs_to_redshift = StageToRedshiftOperator(
     dag=dag
 )
 
+
+# send_data_to_processing
 load_songplays_table = LoadFactOperator(
     task_id='Load_songplays_fact_table',
     dag=dag
@@ -98,3 +121,12 @@ run_quality_checks = DataQualityOperator(
 )
 
 end_operator = DummyOperator(task_id='Stop_execution',  dag=dag)
+
+
+## Define all task dependencies
+# STAGE_task depend of start_tasks
+
+start_operator >> [create_staging_events, create_staging_songs]
+create_staging_events >> stage_events_to_redshift
+create_staging_songs >> stage_songs_to_redshift
+

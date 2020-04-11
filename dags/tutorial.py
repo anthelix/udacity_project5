@@ -1,32 +1,16 @@
-# -*- coding: utf-8 -*-
-#
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
-
-"""
-### Tutorial Documentation
-Documentation that goes along with the Airflow tutorial located
-[here](https://airflow.incubator.apache.org/tutorial.html)
-"""
-from datetime import timedelta
-
+from datetime import timedelta, datetime
 import airflow
 from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.python_operator import PythonOperator
+from airflow.operators import MyFirstOperator, MyFirstSensor
+
+
+def print_hello():
+    return 'Hello Word!'
+
+
 
 # These args will get passed on to each operator
 # You can override them on a per-task basis during operator initialization
@@ -54,12 +38,37 @@ default_args = {
     # 'trigger_rule': u'all_success'
 }
 
+
+
+
+
+
 dag = DAG(
     'tutorial',
     default_args=default_args,
     description='A simple tutorial DAG',
-    schedule_interval=timedelta(days=1),
+    schedule_interval='0 12 * * *',
+    start_date=datetime(2020, 3, 20), catchup=False
 )
+
+
+start_date = 'None'
+
+# task created by instantiating operators DummmyOerator
+dummy_task = DummyOperator(task_id='dummy_task', retries=3, dag=dag)
+# task created by instantiating operators PythonOperators
+hello_operator = PythonOperator(task_id='hello_task', python_callable=print_hello, dag=dag)
+# custom sensor and operator
+sensor_task = MyFirstSensor(
+                            task_id='my_sensor_task',
+                            poke_interval=30, 
+                            dag=dag)
+operator_task = MyFirstOperator(
+                                my_operator_param='This is a test.',
+                                task_id='my_first_operator_task', 
+                                dag=dag)
+
+
 
 # t1, t2 and t3 are examples of tasks created by instantiating operators
 t1 = BashOperator(
@@ -102,3 +111,4 @@ t3 = BashOperator(
 )
 
 t1 >> [t2, t3]
+t1 >> dummy_task >> sensor_task >> operator_task
