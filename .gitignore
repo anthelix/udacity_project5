@@ -1,5 +1,0 @@
-./dags/__pycache__
- __pycache__/
- __pycache__
- settings/local/secret.yaml
- data
