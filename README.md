@@ -44,6 +44,11 @@ to create high grade data pipelines that are dynamic and built from reusable tas
 * Le modèle contient également un ensemble de tâches qui doivent être liées pour obtenir un flux de données cohérent et sensé dans le pipeline.
 * Vous disposerez d'une classe d'assistants qui contient toutes les transformations SQL. Ainsi, vous n'aurez pas besoin d'écrire l'ETL vous-même, mais vous devrez l'exécuter avec vos opérateurs personnalisés.
 ![DAG](image/example-dag.png)
+
+* I then went on to build an example DAG, which would allow me to pull a CSV file from S3, convert to json and then store the result within redshift. 
+
+
+
 ## DONE
 * set Docker
     * create docker-compose.yml

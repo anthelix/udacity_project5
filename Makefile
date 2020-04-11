@@ -1,4 +1,4 @@
-.PHONY: stop clean down kill up variable tty
+.PHONY: stop clean down kill up variable tty start 
 
 help:
 	@echo 'Makefile for ETL within AWS											'
@@ -14,32 +14,48 @@ help:
 	@echo ' make tty			Open up a shell in the container 				'
 	@echo ' c'est un test1														'
 	
+.airflow-secret:
+	@sleep 10
+	@cp settings/local/secret.yaml  settings/local/.airflow-secret.yaml
+	@docker-compose exec webserver bash -c "python3 settings/import-secret.py"
+	@rm -f settings/local/.airflow-secret.yaml
+	@touch $@
 
-stop:
-	$(info Make: Stopping environment containers.)
-	@docker-compose stop
-
-clean:	stop
-	@docker-compose rm -f
-	@rm -rf logs/*
-
-down:
-	$(info Make:Stops service and removes containers.)
-	@docker-compose down
-
-kill:
-	$(info Make: Kill docker-airflow containers.)
-	@echo "Killing docker-airflow containers"
-	docker kill $(shell docker ps -q --filterancestor=puckel/docker-airflow:1.10.9)
+variable:
+	@docker-compose run --rm webserver airflow variables --import /usr/local/airflow/dags/config/variables.json
+	@echo airflow setup variables
 
 up:
 	$(info Make: Starting containers.)
 	@docker-compose up --build -d
 	@echo airflow running on http://localhost:8080
 
-variable:
-	docker-compose run --rm webserver airflow variables --import /usr/local/airflow/dags/config/variables.json
-	@echo airflow setup variables
+start: up .airflow-secret variable
+
+stop:
+	$(info Make: Stopping environment containers.)
+	@docker-compose stop
+
+clean:	down
+	$(info Make: Removing secret files and Docker logs)
+	@rm -f .airflow-secret
+	@rm -f settings/.airflow-secret.yaml
+	@docker-compose rm -f
+	@rm -rf logs/*
+
+
+down: stop
+	$(info Make:Stops service and removes containers.)
+	@docker-compose down -v
+
+kill:
+	$(info Make: Kill docker-airflow containers.)
+	@echo "Killing docker-airflow containers"
+	docker kill $(shell docker ps -q --filter ancestor=puckel/docker-airflow:1.10.9)
+
+
+
+
 
 
 tty:
