@@ -3,7 +3,8 @@
 		"var1": "value1",
 		"var2": [1, 2, 3],
 		"var3": {
-			"k": "paris"
+		"k": "paris",
+		"alertMail" : "chatagns@gmail.com"
 		}
 	}
 }

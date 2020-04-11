@@ -1,4 +1,4 @@
-.PHONY: stop clean down kill up variable tty start 
+.PHONY: stop clean down kill up variable tty start restart
 
 help:
 	@echo 'Makefile for ETL within AWS											'
@@ -43,23 +43,19 @@ clean:	down
 	@docker-compose rm -f
 	@rm -rf logs/*
 
-
 down: stop
-	$(info Make:Stops service and removes containers.)
+	$(info Make: Stopping service and removes containers.)
 	@docker-compose down -v
 
 kill:
 	$(info Make: Kill docker-airflow containers.)
 	@echo "Killing docker-airflow containers"
-	docker kill $(shell docker ps -q --filter ancestor=puckel/docker-airflow:1.10.9)
+	docker kill $(shell docker ps -q --filter ancestor=puckel/docker-airflow)
 
-
-
-
-
+restart: down start
 
 tty:
-	docker exec -i -t $(shell docker ps -q --filter ancestor=puckel/docker-airflow:1.10.9) /bin/bash
+	docker exec -i -t $(shell docker ps -q --filter ancestor=puckel/docker-airflow) /bin/bash
 
 
 
