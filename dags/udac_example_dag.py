@@ -58,6 +58,9 @@ dag = DAG(
 )
 
 # Download_data > send_data_to_processing > momitor_processinf > generate_report > send_email
+# Check that bucket for hour exist → if exist run tasks → [insert data to BigQuery, insert data to PostgreSQL
+
+
 
 
 start_operator = DummyOperator(task_id='Begin_execution', dag=dag)

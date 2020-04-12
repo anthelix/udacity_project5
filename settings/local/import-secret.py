@@ -6,7 +6,7 @@ import subprocess
 import yaml
 
 
-secrets = yaml.full_load(open('settings/.airflow-secret.yaml'))['airflow']
+secrets = yaml.full_load(open('settings/secret.yaml'))['airflow']
 
 json_variables = json.loads(secrets['variables'])
 with open('/tmp/variables.json', 'a') as tmp_file:

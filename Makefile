@@ -16,9 +16,9 @@ help:
 	
 .airflow-secret:
 	@sleep 10
-	@cp settings/local/secret.yaml  settings/local/.airflow-secret.yaml
+	@cp settings/local/secret.yaml  settings/.airflow-secret.yaml
 	@docker-compose exec webserver bash -c "python3 settings/import-secret.py"
-	@rm -f settings/local/.airflow-secret.yaml
+	@rm -f settings/.airflow-secret.yaml
 	@touch $@
 
 variable:
