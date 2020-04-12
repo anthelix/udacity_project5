@@ -1,10 +1,6 @@
 {
-	"example_variables_config": {
-		"var1": "value1",
-		"var2": [1, 2, 3],
-		"var3": {
-		"k": "paris",
-		"alertMail" : "chatagns@gmail.com"
-		}
-	}
+	"variables_config": {
+		"aws_default_region": "eu-east-4",
+		"s3_bucket": "udacity-dend",
+		"s3_prefix": "data-pipelines"}
 }

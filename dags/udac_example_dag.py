@@ -1,4 +1,5 @@
 from datetime import timedelta
+from airflow.models import Variable
 import datetime
 import os
 from airflow import DAG
@@ -9,6 +10,12 @@ from airflow.operators import (StageToRedshiftOperator, LoadFactOperator,
                                 LoadDimensionOperator, DataQualityOperator)
 from helpers import SqlQueries
 from helpers import CreateTables
+
+# edit the .dags/config/variables.json
+dag_config = Variable.get("variables_config", deserialize_json=True)
+aws_default_region = dag_config["aws_default_region"]
+s3_bucket = dag_config["s3_bucket"]
+s3_prefix = dag_config["s3_prefix"]
 
 # AWS_KEY = os.environ.get('AWS_KEY')
 # AWS_SECRET = os.environ.get('AWS_SECRET')
@@ -26,28 +33,11 @@ WORKFLOW_DAG_ID = 'sparkify_dag'
 WORKFLOW_DEFAULT_ARGS = {
     'owner': 'dend_stephanie',
     'depends_on_past': False,
-    # a definir depuis la date des premiers fichiers
     'start_date': WORKFLOW_START_DATE,
-    # ecrire une tache pour envoie de mail, faire un test et capture d'ecran
-    #'email': WORKFLOW_DAG_ALERT,
-    #'email_on_failure': True,
-    #'email_on_retry': False,
     'retries': 3,
-    'retry_delay': WORKFLOW_RETRY_DELAY ,
-    # 'queue': 'bash_queue',
-    # 'pool': 'backfill',
-    # 'priority_weight': 10,
-    # 'end_date': datetime(2016, 1, 1),
-    # 'wait_for_downstream': False,
-    # 'dag': dag,
-    # 'adhoc':False,
-    # 'sla': timedelta(hours=2),
-    # 'execution_timeout': timedelta(seconds=300),
-    # 'on_failure_callback': some_function,
-    # 'on_success_callback': some_other_function,
-    # 'on_retry_callback': another_function,
-    # 'trigger_rule': u'all_success'
+    'retry_delay': WORKFLOW_RETRY_DELAY
 }
+
 
 dag = DAG(
     dag_id=                 WORKFLOW_DAG_ID,
@@ -60,6 +50,10 @@ dag = DAG(
 # Download_data > send_data_to_processing > momitor_processinf > generate_report > send_email
 # Check that bucket for hour exist → if exist run tasks → [insert data to BigQuery, insert data to PostgreSQL
 
+def print_hello():
+    return 'Hello Word!'
+hello_operator = PythonOperator(task_id='hello_task', python_callable=print_hello, dag=dag)
+
 
 
 
@@ -69,14 +63,14 @@ start_operator = DummyOperator(task_id='Begin_execution', dag=dag)
 create_staging_events = PostgresOperator(
     task_id="create_staging_events",
     dag=dag,
-    postgres_conn_id="redshift",
+    #postgres_conn_id="postgres_default",
     sql=CreateTables.staging_events_table_create
 )
 
 create_staging_songs = PostgresOperator(
     task_id="create_staging_songs",
     dag=dag,
-    postgres_conn_id="redshift",
+    #postgres_conn_id="postgres_default",
     sql=CreateTables.staging_songs_table_create
 )
 
@@ -129,7 +123,10 @@ end_operator = DummyOperator(task_id='Stop_execution',  dag=dag)
 ## Define all task dependencies
 # STAGE_task depend of start_tasks
 
-start_operator >> [create_staging_events, create_staging_songs]
-create_staging_events >> stage_events_to_redshift
-create_staging_songs >> stage_songs_to_redshift
+
+start_operator >> hello_operator
+
+#start_operator >> [create_staging_events, create_staging_songs]
+#create_staging_events >> stage_events_to_redshift
+#create_staging_songs >> stage_songs_to_redshift
 

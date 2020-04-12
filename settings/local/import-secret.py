@@ -8,12 +8,12 @@ import yaml
 
 secrets = yaml.full_load(open('settings/secret.yaml'))['airflow']
 
-json_variables = json.loads(secrets['variables'])
-with open('/tmp/variables.json', 'a') as tmp_file:
-    json.dump(json_variables, tmp_file, sort_keys=True, indent=4)
-
-subprocess.Popen("/entrypoint.sh airflow variables -i /tmp/variables.json; rm -f /tmp/variables.json",
-                 shell=True).wait()
+#json_variables = json.loads(secrets['variables'])
+#with open('/tmp/variables.json', 'a') as tmp_file:
+#    json.dump(json_variables, tmp_file, sort_keys=True, indent=4)
+#
+#subprocess.Popen("/entrypoint.sh airflow variables -i /tmp/variables.json; rm -f /tmp/variables.json",
+#                 shell=True).wait()
 
 for conn in secrets['connections']:
     params = f"--conn_id {conn['id']} --conn_type {conn['type']} "

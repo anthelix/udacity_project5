@@ -1,21 +1,28 @@
 from datetime import timedelta, datetime
 import airflow
+from airflow.models import Variable
 from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
+from airflow.operators.postgres_operator import PostgresOperator
 from airflow.operators import MyFirstOperator, MyFirstSensor
+
+
+from helpers import CreateTables
+
+# edit the .dags/config/variables.json
+dag_config = Variable.get("variables_config", deserialize_json=True)
+aws_default_region = dag_config["aws_default_region"]
+s3_bucket = dag_config["s3_bucket"]
+s3_prefix = dag_config["s3_prefix"]
 
 
 def print_hello():
     return 'Hello Word!'
 
-
-
-# These args will get passed on to each operator
-# You can override them on a per-task basis during operator initialization
 default_args = {
-    'owner': 'airflow',
+    'owner': 'dend_stephanie',
     'depends_on_past': False,
     'start_date': airflow.utils.dates.days_ago(7),
     'email': ['airflow@example.com'],
@@ -23,24 +30,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
-    # 'queue': 'bash_queue',
-    # 'pool': 'backfill',
-    # 'priority_weight': 10,
-    # 'end_date': datetime(2016, 1, 1),
-    # 'wait_for_downstream': False,
-    # 'dag': dag,
-    # 'adhoc':False,
-    # 'sla': timedelta(hours=2),
-    # 'execution_timeout': timedelta(seconds=300),
-    # 'on_failure_callback': some_function,
-    # 'on_success_callback': some_other_function,
-    # 'on_retry_callback': another_function,
-    # 'trigger_rule': u'all_success'
 }
-
-
-
-
 
 
 dag = DAG(
@@ -52,7 +42,6 @@ dag = DAG(
 )
 
 
-start_date = 'None'
 
 # task created by instantiating operators DummmyOerator
 dummy_task = DummyOperator(task_id='dummy_task', retries=3, dag=dag)
@@ -67,6 +56,21 @@ operator_task = MyFirstOperator(
                                 my_operator_param='This is a test.',
                                 task_id='my_first_operator_task', 
                                 dag=dag)
+
+# Create Staging tables
+create_staging_events = PostgresOperator(
+    task_id="create_staging_events",
+    dag=dag,
+    postgres_conn_id="sparkify",
+    sql=CreateTables.staging_events_table_create
+)
+
+create_staging_songs = PostgresOperator(
+    task_id="create_staging_songs",
+    dag=dag,
+    postgres_conn_id="sparkify",
+    sql=CreateTables.staging_songs_table_create
+)
 
 
 
@@ -110,5 +114,8 @@ t3 = BashOperator(
     dag=dag,
 )
 
+hello_operator >> t1 
 t1 >> [t2, t3]
 t1 >> dummy_task >> sensor_task >> operator_task
+hello_operator >> create_staging_events
+hello_operator >> create_staging_songs

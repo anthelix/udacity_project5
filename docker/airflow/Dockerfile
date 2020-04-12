@@ -11,7 +11,7 @@ RUN set -xe \
 
 RUN pip install --user psycopg2-binary
 ENV AIRFLOW_HOME=/usr/local/airflow
-COPY ./settings/airflow.cfg /usr/local/airflow/airflow.cfg
+COPY settings/airflow.cfg /usr/local/airflow/airflow.cfg
 
 
 USER airflow
