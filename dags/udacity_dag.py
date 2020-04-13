@@ -8,6 +8,9 @@ from airflow.operators.python_operator import PythonOperator
 from airflow.operators.postgres_operator import PostgresOperator
 from airflow.operators import MyFirstOperator, MyFirstSensor
 
+
+from helpers import CreateTables
+
 # edit the .dags/config/variables.json
 dag_config = Variable.get("variables_config", deserialize_json=True)
 aws_default_region = dag_config["aws_default_region"]
@@ -31,7 +34,7 @@ default_args = {
 
 
 dag = DAG(
-    'tutorial',
+    'Udacity_dag',
     default_args=default_args,
     description='A simple tutorial DAG',
     schedule_interval='0 12 * * *',
@@ -53,6 +56,22 @@ operator_task = MyFirstOperator(
                                 my_operator_param='This is a test.',
                                 task_id='my_first_operator_task', 
                                 dag=dag)
+
+# Create Staging tables
+create_staging_events = PostgresOperator(
+    task_id="create_staging_events",
+    dag=dag,
+    postgres_conn_id="sparkify",
+    sql=CreateTables.staging_events_table_create
+)
+
+create_staging_songs = PostgresOperator(
+    task_id="create_staging_songs",
+    dag=dag,
+    postgres_conn_id="sparkify",
+    sql=CreateTables.staging_songs_table_create
+)
+
 
 
 # t1, t2 and t3 are examples of tasks created by instantiating operators
@@ -98,3 +117,5 @@ t3 = BashOperator(
 hello_operator >> t1 
 t1 >> [t2, t3]
 t1 >> dummy_task >> sensor_task >> operator_task
+t2 >> create_staging_events
+t2 >> create_staging_songs

@@ -1,10 +1,11 @@
-.PHONY: clean down kill ttyrestart psql .airflow-secret start
+.PHONY: clean down kill ttyrestart psql .airflow-secret start 
 
 help:
 	@echo 'Makefile for ETL within AWS											'
 	@echo '																		'
 	@echo 'Usage: 																'
-	@echo ' make config			Stop to enter your credentials
+	@echo ' make config			Stop to enter your credentials					'
+	@echo ' make run			Build containers, setup Airflow						'
 	@echo ' make build			Build images									'
 	@echo ' make up			Creates containers and starts service				'
 	@echo ' make clean			Stops and removes all docker containers			'
@@ -38,7 +39,7 @@ variable:
 	@docker-compose run --rm webserver airflow variables --import /usr/local/airflow/dags/config/variables.json
 	@echo airflow setup variables
 
-
+run: up .airflow-secret variable
 
 start: config up .airflow-secret variable
 

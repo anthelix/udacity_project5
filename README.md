@@ -75,40 +75,41 @@ The purpose of this project is to build an ETL pipeline with Airflow. The source
 ##### Log Dataset
 
 ## To Run localy
+
+* Install Docker
+* git clone this project
+* In the $WORDIR, run `make config`, setup the `./airflow-secret.yaml` with your credentials then run `make run`. 
+
+#### AWS Redshift
+* Todo: Add script to create the redshift database
+
+#### Docker: useful cmd 
 * sudo systemctl start docker
-docker images
-docker rmi -f $(docker images -qa)
-docker stop $(docker ps -a -q) 
-docker rm $(docker ps -a -q)
-dud: docker-compose up -d
-docker-compose up -d --build: build the image if changes
-Check http://localhost:8080/
+* docker images
+* docker rmi -f $(docker images -qa)
+* docker stop $(docker ps -a -q) 
+* docker rm $(docker ps -a -q)
+* dud: docker-compose up -d
+* docker-compose up -d --build
+* docker-compose logs - Displays log output
+* docker-compose ps - List containers
+* docker-compose down - Stop containers
+* If you want to run airflow sub-commands, you can do so like this:
+    * docker-compose run --rm webserver airflow list_dags - List dags
+    * docker-compose run --rm webserver airflow test [DAG_ID] [TASK_ID] [EXECUTION_DATE] - Test specific task
+* If you want to run/test python script, you can do so like this:
+    * docker-compose run --rm webserver python /usr/local/airflow/dags/[PYTHON-FILE].py - Test python script
+* If you want to use Ad hoc query, make sure you've configured connections: Go to Admin -> Connections and Edit "postgres_default" set this values:
+    * localy
+        * Host : postgres
+        * Schema : sparkify
+        * Login : sparkify
+        * Password : sparkify
+        * Port: 5432
 
-    docker-compose logs - Displays log output
-    docker-compose ps - List containers
-    docker-compose down - Stop containers
-
-If you want to run airflow sub-commands, you can do so like this:
-
-    docker-compose run --rm webserver airflow list_dags - List dags
-    docker-compose run --rm webserver airflow test [DAG_ID] [TASK_ID] [EXECUTION_DATE] - Test specific task
-
-If you want to run/test python script, you can do so like this:
-
-    docker-compose run --rm webserver python /usr/local/airflow/dags/[PYTHON-FILE].py - Test python script
-
-If you want to use Ad hoc query, make sure you've configured connections: Go to Admin -> Connections and Edit "postgres_default" set this values:
-
-    Host : postgres
-    Schema : airflow
-    Login : airflow
-    Password : airflow
-
-    Host : postgres
-    Schema : sparkify
-    Login : sparkify
-    Password : sparkify
-
+#### Makefile
+I provide a Makefile to create and run the Docker container, run Airflow and  create a database Sparkify, user Sparkify
+* Run `make` to check the cmd available and see the help menu.
 
 
 
