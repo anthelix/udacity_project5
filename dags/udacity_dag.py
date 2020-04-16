@@ -1,3 +1,8 @@
+# with staging functions
+# donr't use this .py
+# prends et efface
+
+from __future__ import print_function
 from datetime import timedelta, datetime
 import airflow
 from airflow.models import Variable
@@ -6,23 +11,53 @@ from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.postgres_operator import PostgresOperator
+
+
 from airflow.operators import MyFirstOperator, MyFirstSensor
-
-
 from helpers import CreateTables
 
+########################################################################
+#0_begin process
+#1_verifier et imprimer les paramtres
+#2_afficher la liste des fichiers dans s3
+#3_charger les donnees de s3 a redshift
+#4-creer les stagging table
+#    * staging_events pour log_file file
+#    * staging_songs pour song_data file
+#5_charger les donnees dans les stagiing tables
+#6_creer les dimTables et FactTables
+#   *factSongplays
+#   *dimSong
+#   *dimUser
+#   *dimArtist
+#   *dimTime
+#7_Polulate all the tables
+#8_make check for all tables
+#9_stop 
+
+
+
+
+#########################################################################
 # edit the .dags/config/variables.json
+
+
+
+# docker-compose run --rm webserver airflow variables --import /usr/local/airflow/dags/config/variables.json
+# docker-compose run --rm webserver airflow variables --get s3_bucket
+# docker-compose run --rm webserver airflow variables --set var4 value4]
+
+## use with bash_command="echo {{ var.json.variables_config.s3_bucket }}"
 dag_config = Variable.get("variables_config", deserialize_json=True)
-aws_default_region = dag_config["aws_default_region"]
-s3_bucket = dag_config["s3_bucket"]
-s3_prefix = dag_config["s3_prefix"]
 
 
+#########################################################################
+# FUNCTIONS
 def print_hello():
     return 'Hello Word!'
 
 default_args = {
-    'owner': 'dend_stephanie',
+    'owner': 'Chatagns',
     'depends_on_past': False,
     'start_date': airflow.utils.dates.days_ago(7),
     'email': ['airflow@example.com'],
@@ -30,23 +65,28 @@ default_args = {
     'email_on_retry': False,
     'retries': 1,
     'retry_delay': timedelta(minutes=5),
+    'catchup': False # Run only the last DAG
 }
 
-
+#########################################################################
+# DAGS  ## changer starttime, schedule interval.
 dag = DAG(
-    'Udacity_dag',
+    'ETL_Sparkify',
     default_args=default_args,
-    description='A simple tutorial DAG',
+    description='ETL with from S3 to Redshift with Airflow',
     schedule_interval='0 12 * * *',
     start_date=datetime(2020, 3, 20), catchup=False
 )
 
 
 
+####################################################################################
+# TASKS
+
 # task created by instantiating operators DummmyOerator
 dummy_task = DummyOperator(task_id='dummy_task', retries=3, dag=dag)
 # task created by instantiating operators PythonOperators
-hello_operator = PythonOperator(task_id='hello_task', python_callable=print_hello, dag=dag)
+hello_operator = PythonOperator(task_id='hello_task', python_callable=print_hello, dag=dag) ###
 # custom sensor and operator
 sensor_task = MyFirstSensor(
                             task_id='my_sensor_task',
@@ -81,41 +121,29 @@ t1 = BashOperator(
     dag=dag,
 )
 
-t1.doc_md = """\
-#### Task Documentation
-You can document your task using the attributes `doc_md` (markdown),
-`doc` (plain text), `doc_rst`, `doc_json`, `doc_yaml` which gets
-rendered in the UI's Task Instance Details page.
-![img](http://montcs.bloomu.edu/~bobmon/Semesters/2012-01/491/import%20soul.png)
-"""
-
-dag.doc_md = __doc__
-
 t2 = BashOperator(
     task_id='sleep',
     depends_on_past=False,
     bash_command='sleep 5',
     dag=dag,
 )
-
-templated_command = """
-{% for i in range(5) %}
-    echo "{{ ds }}"
-    echo "{{ macros.ds_add(ds, 7)}}"
-    echo "{{ params.my_param }}"
-{% endfor %}
-"""
-
 t3 = BashOperator(
-    task_id='templated',
-    depends_on_past=False,
-    bash_command=templated_command,
-    params={'my_param': 'Parameter I passed in'},
-    dag=dag,
+    task_id="displaySourcePath",
+    bash_command="echo {{ var.value.prefix }}", #set in variables
 )
 
-hello_operator >> t1 
-t1 >> [t2, t3]
-t1 >> dummy_task >> sensor_task >> operator_task
-t2 >> create_staging_events
-t2 >> create_staging_songs
+t4 = BashOperator(
+    task_id="displayData",
+    bash_command="echo {{ var.json.variables_config.s3_bucket }}", #set in variables
+)
+
+t5 = BashOperator(
+    task_id="get_dag_config",
+    bash_command='echo "{0}"'.format(dag_config),
+    dag=dag,
+)
+ 
+t1 >> t5 >> t3 >> t4 
+
+
+

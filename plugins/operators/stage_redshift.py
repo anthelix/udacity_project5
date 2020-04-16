@@ -11,8 +11,6 @@ class StageToRedshiftOperator(BaseOperator):
      of the STAGE operator is containing a templated field that allows it to load timestamped files 
      from S3 based on the execution time and run backfills.
 
-
-
     L'opérateur STAGE devrait pouvoir charger n'importe quel fichier au format JSON de 
     S3 vers Amazon Redshift. L'opérateur crée et exécute une instruction SQL COPY sur 
     la base des paramètres fournis. Les paramètres de l'opérateur doivent préciser où 

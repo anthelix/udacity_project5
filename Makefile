@@ -5,7 +5,7 @@ help:
 	@echo '																		'
 	@echo 'Usage: 																'
 	@echo ' make config			Stop to enter your credentials					'
-	@echo ' make run			Build containers, setup Airflow						'
+	@echo ' make run			Build containers, setup Airflow					'
 	@echo ' make build			Build images									'
 	@echo ' make up			Creates containers and starts service				'
 	@echo ' make clean			Stops and removes all docker containers			'
@@ -15,7 +15,11 @@ help:
 	@echo ' make stop			Stop environment containers						'
 	@echo ' make tty			Open up a shell in the container 				'
 	@echo ' make psql			Open up a psql connection with the database		'
+	@echo ' make start			Buid Docker with config and variables Airflow	'
 
+
+
+## MAKE DOCKER
 
 config:
 	@cp settings/local/secret_template.yaml  ./airflow-secret.yaml
@@ -38,14 +42,18 @@ up:
 variable:
 	@docker-compose run --rm webserver airflow variables --import /usr/local/airflow/dags/config/variables.json
 	@echo airflow setup variables
+	@docker-compose run --rm webserver airflow variables --import /usr/local/airflow/dags/config/example_variables.json
+	@@echo airflow setup variables
 
 run: up .airflow-secret variable
 
 start: config up .airflow-secret variable
 
-stop:
-	$(info Make: Stopping environment containers.)
-	@docker-compose stop
+down:
+	$(info Make: Stopping service and removes containers.)
+	@docker-compose down -v
+
+restart: down start
 
 clean:	down
 	$(info Make: Removing secret files and Docker logs)	
@@ -53,19 +61,28 @@ clean:	down
 	@docker-compose rm -f
 	@rm -rf logs/*
 
-down: stop
-	$(info Make: Stopping service and removes containers.)
-	@docker-compose down -v
-
 kill:
 	$(info Make: Kill docker-airflow containers.)
 	@echo "Killing docker-airflow containers"
 	docker kill $(shell docker ps -q --filter ancestor=puckel/docker-airflow)
-
-restart: down start
 
 tty:
 	docker exec -i -t $(shell docker ps -q --filter ancestor=puckel/docker-airflow) /bin/bash
 
 psql:
 	docker exec -i -t $(shell docker ps -q --filter ancestor=postgres:9.6) psql -U airflow
+
+## MAKE AWS 
+
+redshift:
+	$(info Make: Creating database Redshift and connection.)
+	@nohup python3 ./redshift/mycluster.py &
+	@nohup sleep 400 &
+Conn:
+	@python3 ./redshift/myconn.py 
+
+aws: redshift con 
+
+stop:
+	$(info Make: Stopping Redshift.)
+	@nohup python3 ./redshift/myclusterend.py &

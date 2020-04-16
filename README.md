@@ -48,6 +48,8 @@ to create high grade data pipelines that are dynamic and built from reusable tas
 * I then went on to build an example DAG, which would allow me to pull a CSV file from S3, convert to json and then store the result within redshift. 
 * \l \c db user \du \z \q \z \d nomtable 
 
+* redshift: changer le chemin par default avant le push de `config.read_file(open(path_cfg + 'dwh.cfg'))` dans `mycluster.py` ligne 12 et 13, `myconn.py`, ligne 13 et 93, `myclusterend.py` ligne
+
 
 ## DONE
 * set Docker
