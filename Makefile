@@ -1,4 +1,4 @@
-.PHONY: clean down kill ttyrestart psql .airflow-secret start 
+.PHONY: clean down kill ttyrestart psql .airflow-secret start redshift
 
 help:
 	@echo 'Makefile for ETL within AWS											'
@@ -76,12 +76,12 @@ psql:
 
 redshift:
 	$(info Make: Creating database Redshift and connection.)
-	@nohup python3 ./redshift/mycluster.py &
-	@nohup sleep 400 &
-Conn:
+	@python3 ./redshift/mycluster.py
+	@sleep 400 &
+conn:
 	@python3 ./redshift/myconn.py 
 
-aws: redshift con 
+aws: redshift conn
 
 stop:
 	$(info Make: Stopping Redshift.)

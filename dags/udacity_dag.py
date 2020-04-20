@@ -5,15 +5,21 @@
 from __future__ import print_function
 from datetime import timedelta, datetime
 import airflow
+import logging
+import pprint
+import os
+import glob
 from airflow.models import Variable
 from airflow import DAG
+from airflow.plugins_manager import AirflowPlugin
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.postgres_operator import PostgresOperator
 
 
-from airflow.operators import MyFirstOperator, MyFirstSensor
+from airflow.operators import (MyFirstOperator, MyFirstSensor,
+                                StageToRedshiftOperator)
 from helpers import CreateTables
 
 ########################################################################
@@ -41,20 +47,9 @@ from helpers import CreateTables
 #########################################################################
 # edit the .dags/config/variables.json
 
-
-
 # docker-compose run --rm webserver airflow variables --import /usr/local/airflow/dags/config/variables.json
 # docker-compose run --rm webserver airflow variables --get s3_bucket
 # docker-compose run --rm webserver airflow variables --set var4 value4]
-
-## use with bash_command="echo {{ var.json.variables_config.s3_bucket }}"
-dag_config = Variable.get("variables_config", deserialize_json=True)
-
-
-#########################################################################
-# FUNCTIONS
-def print_hello():
-    return 'Hello Word!'
 
 default_args = {
     'owner': 'Chatagns',
@@ -63,10 +58,28 @@ default_args = {
     'email': ['airflow@example.com'],
     'email_on_failure': False,
     'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
+    'retries': 3,
+    'retry_delay': timedelta(minutes=1),
     'catchup': False # Run only the last DAG
 }
+
+#AWS_KEY = os.environ.get('AWS_KEY')
+#AWS_SECRET = os.environ.get('AWS_SECRET')
+
+
+
+#########################################################################
+# FUNCTIONS
+def print_hello():
+    return 'Hello Word!'
+
+def list_keys():
+    hook = S3Hook(aws_conn_id='aws_credential')
+    bucket = Variable.get('s3_bucket')
+    logging.info(f"Listing Keys from {bucket}")
+    keys = hook.list_keys(bucket)
+    for key in keys:
+        logging.info(f"- s3://{bucket}/{key}")
 
 #########################################################################
 # DAGS  ## changer starttime, schedule interval.
@@ -75,7 +88,7 @@ dag = DAG(
     default_args=default_args,
     description='ETL with from S3 to Redshift with Airflow',
     schedule_interval='0 12 * * *',
-    start_date=datetime(2020, 3, 20), catchup=False
+    start_date=datetime(2020, 3, 17), catchup=False,
 )
 
 
@@ -84,66 +97,49 @@ dag = DAG(
 # TASKS
 
 # task created by instantiating operators DummmyOerator
-dummy_task = DummyOperator(task_id='dummy_task', retries=3, dag=dag)
-# task created by instantiating operators PythonOperators
-hello_operator = PythonOperator(task_id='hello_task', python_callable=print_hello, dag=dag) ###
-# custom sensor and operator
-sensor_task = MyFirstSensor(
-                            task_id='my_sensor_task',
-                            poke_interval=30, 
-                            dag=dag)
-operator_task = MyFirstOperator(
-                                my_operator_param='This is a test.',
-                                task_id='my_first_operator_task', 
-                                dag=dag)
+start_operator = DummyOperator(task_id='Begin_execution',  dag=dag)
+
+# task display pathfiles
+list_keys = PythonOperator(
+    task_id="get_path_files",
+    python_callable=list_keys,
+    dag=dag
+)
+
+copy_songs_task = StageToRedshiftOperator(
+    task_id="copy_songs_from_s3_to_staging_songs_redshift",
+    dag=dag,
+    redshift_conn_id="redshift",
+    aws_credentials_id="aws_credential",
+    target_table= "staging_events",
+    s3_bucket= "udacity-dend",
+    s3_key= "song_data",
+    json_format="auto"
+)
+
 
 # Create Staging tables
 create_staging_events = PostgresOperator(
     task_id="create_staging_events",
     dag=dag,
-    postgres_conn_id="sparkify",
+    postgres_conn_id="redshift",
     sql=CreateTables.staging_events_table_create
 )
 
 create_staging_songs = PostgresOperator(
     task_id="create_staging_songs",
     dag=dag,
-    postgres_conn_id="sparkify",
+    postgres_conn_id="redshift",
     sql=CreateTables.staging_songs_table_create
 )
 
-
-
-# t1, t2 and t3 are examples of tasks created by instantiating operators
-t1 = BashOperator(
-    task_id='print_date',
-    bash_command='date',
-    dag=dag,
-)
-
-t2 = BashOperator(
-    task_id='sleep',
-    depends_on_past=False,
-    bash_command='sleep 5',
-    dag=dag,
-)
-t3 = BashOperator(
-    task_id="displaySourcePath",
-    bash_command="echo {{ var.value.prefix }}", #set in variables
-)
-
-t4 = BashOperator(
-    task_id="displayData",
-    bash_command="echo {{ var.json.variables_config.s3_bucket }}", #set in variables
-)
-
-t5 = BashOperator(
-    task_id="get_dag_config",
-    bash_command='echo "{0}"'.format(dag_config),
-    dag=dag,
-)
- 
-t1 >> t5 >> t3 >> t4 
+# stage tables
 
 
 
+start_operator >> create_staging_songs
+start_operator >> list_keys
+# start_operator >> create_staging_events
+
+create_staging_songs >> copy_songs_task
+# create_staging_events >> copy_logs_task

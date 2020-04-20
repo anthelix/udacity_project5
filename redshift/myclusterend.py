@@ -7,7 +7,7 @@ from time import sleep
 
 
 def endCluster():
-    path_cfg ='/home/anthelix/Documents/projetGit/'
+    path_cfg ='./redshift/'
     # Load DWH Params from a file
     config = configparser.ConfigParser() # creer le fichier de configuaration en memoire
     config.read_file(open(path_cfg + 'dwh.cfg'))

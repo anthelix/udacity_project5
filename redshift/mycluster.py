@@ -9,8 +9,7 @@ from time import sleep
 def createCluster():
 
     # Load DWH Params from a file
-    path_cfg ='/home/anthelix/Documents/projetGit/'
-    # path_cfg = '../../settings/'
+    path_cfg ='./redshift/'
     config = configparser.ConfigParser() # creer le fichier de configuaration en memoire
     config.read_file(open(path_cfg + 'dwh.cfg'))
 
@@ -77,6 +76,35 @@ def createCluster():
     lunchCluster(redshift,roleArn, DWH_CLUSTER_TYPE, DWH_NODE_TYPE, DWH_NUM_NODES,DWH_DB, DWH_CLUSTER_IDENTIFIER,DWH_DB_USER,DWH_DB_PASSWORD )
 
 
+    myClusterProps = redshift.describe_clusters(ClusterIdentifier=DWH_CLUSTER_IDENTIFIER)['Clusters'][0]
+    prettyRedshiftProps(myClusterProps)
+
+    while myClusterProps['ClusterStatus'] == 'creating' :
+        print('Waiting for cluster to be ready ...')
+        myClusterProps = redshift.describe_clusters(ClusterIdentifier=DWH_CLUSTER_IDENTIFIER)['Clusters'][0]
+        sleep(30)
+    if myClusterProps['ClusterStatus'] == 'available' :
+        print("Cluster Created and running")
+    
+    DWH_EMPOINT = myClusterProps['Endpoint']['Address']
+    DWH_ROLE_ARN = myClusterProps['IamRoles'][0]['IamRoleArn']
+    print("DWN_ENPOINT :: ", DWH_EMPOINT)
+    print("DWH_ROLE_ARN :: ", roleArn)
+
+    try:
+        vpc = ec2.Vpc(id=myClusterProps['VpcId'])
+        defaultSg = list(vpc.security_groups.all())[4]
+        print(defaultSg)
+        defaultSg.authorize_ingress(
+            GroupName='default',
+            CidrIp='0.0.0.0/0',
+            IpProtocol='TCP',
+            FromPort=int(DWH_PORT),
+            ToPort=int(DWH_PORT)
+    )
+    except Exception as e:
+        print(e)
+
 
 def createRole(iam, DWH_IAM_ROLE_NAME):
     ## STEP 1: IAM ROLE
@@ -133,22 +161,13 @@ def lunchCluster(redshift,roleArn, DWH_CLUSTER_TYPE, DWH_NODE_TYPE, DWH_NUM_NODE
     ## 2.1 *Describe* the cluster to see its status
     ## - run this block several times until the cluster status becomes `Available`
 
-    def prettyRedshiftProps(props):
-        keysToShow = ["ClusterIdentifier", "NodeType", "ClusterStatus", "MasterUsername", "DBName", "Endpoint", "NumberOfNodes", 'VpcId']
-        x = [(k, v) for k,v in props.items() if k in keysToShow]
-        props=pd.DataFrame(data=x, columns=["Key", "Value"])
-        return(print(tabulate(props, headers='keys', tablefmt='rst', showindex=False)))
+def prettyRedshiftProps(props):
+    keysToShow = ["ClusterIdentifier", "NodeType", "ClusterStatus", "MasterUsername", "DBName", "Endpoint", "NumberOfNodes", 'VpcId']
+    x = [(k, v) for k,v in props.items() if k in keysToShow]
+    props=pd.DataFrame(data=x, columns=["Key", "Value"])
+    return(print(tabulate(props, headers='keys', tablefmt='rst', showindex=False)))
 
-    myClusterProps = redshift.describe_clusters(ClusterIdentifier=DWH_CLUSTER_IDENTIFIER)['Clusters'][0]
-    prettyRedshiftProps(myClusterProps)
-    # time.sleep(20)
 
-    while myClusterProps['ClusterStatus'] == 'creating' :
-        print('Waiting for cluster to be ready ...')
-        myClusterProps = redshift.describe_clusters(ClusterIdentifier=DWH_CLUSTER_IDENTIFIER)['Clusters'][0]
-        sleep(30)
-    if myClusterProps['ClusterStatus'] == 'available' :
-        print("Cluster Created and running")
 
 
 

@@ -122,3 +122,7 @@ I provide a Makefile to create and run the Docker container, run Airflow and  cr
 ### Run scripts
 
 ## Worflow
+
+* [Go Data Friven](https://godatadriven.com/blog/the-zen-of-python-and-apache-airflow/)
+
+* []()
