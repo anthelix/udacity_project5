@@ -4,6 +4,7 @@ from operators.load_dimension import LoadDimensionOperator
 from operators.data_quality import DataQualityOperator
 from operators.my_operator import MyFirstOperator
 from operators.my_operator import MyFirstSensor
+from operators.has_rows import HasRowsOperator
 
 __all__ = [
     'StageToRedshiftOperator',
@@ -11,5 +12,6 @@ __all__ = [
     'LoadDimensionOperator',
     'DataQualityOperator',
     'MyFirstOperator',
-    'MyFirstSensor'
+    'MyFirstSensor',
+    'HasRowsOperator'
 ]

@@ -2,6 +2,7 @@ from airflow.hooks.postgres_hook import PostgresHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.plugins_manager import AirflowPlugin
 
 class StageToRedshiftOperator(BaseOperator):
     """
@@ -52,15 +53,18 @@ class StageToRedshiftOperator(BaseOperator):
                     ACCESS_KEY_ID '{}'
                     SECRET_ACCESS_KEY '{}'
                     compupdate off
+                    region {}
                     FORMAT AS JSON '{}';
     """
     @apply_defaults # define operators parameters
     def __init__(self,
                  redshift_conn_id="",
                  aws_credentials_id="",
+                 create_tbl="",
                  target_table="",
                  s3_bucket="",
                  s3_key="",
+                 s3_region="",
                  json_format="",
                  *args, **kwargs):
 
@@ -68,9 +72,11 @@ class StageToRedshiftOperator(BaseOperator):
         # set the attributes on our class
         self.redshift_conn_id = redshift_conn_id
         self.aws_credentials_id = aws_credentials_id
+        self.create_tbl = create_tbl
         self.target_table = target_table
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
+        self.s3_region = s3_region
         self.json_format = json_format
 
 
@@ -81,25 +87,35 @@ class StageToRedshiftOperator(BaseOperator):
         redshift_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
         credentials = aws_hook.get_credentials()
         
+        # create stage table if not exists
+        self.log.info('Create {} if not exists'.format(self.target_table))
+        redshift_hook.run(self.create_tbl)
+
         # clear target_table in redshift
-        self.log.info('Clearing data from destination Redshift table')
+        self.log.info('Clearing data from destination Redshift' + self.target_table)
         redshift_hook.run("DELETE FROM {}".format(self.target_table))
 
         # copy data from s3 to redshift
-        self.log.info('Copying data from s3 to Redshift')
+        self.log.info('Copying data from s3 to Redshift in ' + self.target_table)
         rendered_key = self.s3_key.format(**context)
         s3_path = "s3://{}/{}".format(self.s3_bucket, rendered_key)
+        json_path = "s3://{}/{}".format(self.s3_bucket, self.json_format)
         self.log.info("rendered_key: {}".format(rendered_key))
-
+        if rendered_key == "song_data":
+            json_path = self.json_format # auto
         sql_stmt = StageToRedshiftOperator.copy_query_template.format(
             self.target_table,
             s3_path,
             credentials.access_key,
             credentials.secret_key,
-            self.json_format
+            self.s3_region,
+            # self.json_format
+            json_format
         )
         self.log.info(f'Running {sql_stmt}')
         redshift_hook.run(sql_stmt)
+
+        self.log.info("StageToRedshiftOperator end !!")
 
 
 

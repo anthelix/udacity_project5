@@ -1,4 +1,3 @@
-from __future__ import division, absolute_import, print_function
 
 from airflow.plugins_manager import AirflowPlugin
 
@@ -13,6 +12,7 @@ class UdacityPlugin(AirflowPlugin):
         operators.LoadFactOperator,
         operators.LoadDimensionOperator,
         operators.DataQualityOperator,
+        operators.HasRowsOperator,
         operators.MyFirstOperator,
         operators.MyFirstSensor
     ]

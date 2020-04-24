@@ -7,8 +7,9 @@ import pprint
 import logging
 import os
 import glob
-from datetime import timedelta, datetime
 import airflow
+import datetime
+from datetime import timedelta
 from airflow.models import Variable
 from airflow import DAG
 from airflow.operators.bash_operator import BashOperator
@@ -51,7 +52,7 @@ dag_config = Variable.get("variables_config", deserialize_json=True)
 default_args = {
     'owner': 'dend_stephanie',
     'depends_on_past': False,
-    'start_date': airflow.utils.dates.days_ago(7),
+    'catchup': False, 
     'email': ['airflow@example.com'],
     'email_on_failure': False,
     'email_on_retry': False,
@@ -62,53 +63,53 @@ default_args = {
 target_db = 'mini-warehouse-db'
 
 dag = DAG(
-    'chadag',
+    'chadag_dailyBackSlashDsS',
+    start_date=datetime.datetime(2018, 11, 1, 0, 0, 0, 0),
+    schedule_interval='@daily',
     default_args=default_args,
     description='A simple tutorial DAG',
-    schedule_interval='0 12 * * *',
-    start_date=datetime(2019, 3, 20), catchup=False
-)
+    )
 ####################################################################################
 # A simple sensor checking wether clickstream data is present 
 # for the day following the execution_date of the DAG Run
-sensor_query_template = '''
-SELECT TRUE
-FROM clickstream
-WHERE click_timestamp::DATE >= '{{ execution_date + macros.timedelta(days=1) }}'::DATE
-LIMIT 1
-'''
+#sensor_query_template = '''
+#SELECT TRUE
+#FROM clickstream
+#WHERE click_timestamp::DATE >= '{{ execution_date + macros.timedelta(days=1) }}'::DATE
+#LIMIT 1
+#'''
 
-# A sensor task using a SqlSensor operator
-sensor_task = SqlSensor(
-    task_id='check_data_avail',
-    conn_id=target_db,
-    sql=sensor_query_template,
-    poke_interval=30,
-    timeout=3600,
-    dag=dag)
+# A sensor task using a SqlSensor operator#
+#sensor_task = SqlSensor(
+#    task_id='check_data_avail',
+#    conn_id=target_db,
+#    sql=sensor_query_template,
+#    poke_interval=30,
+#    timeout=3600,
+#    dag=dag)
 
 # A minimalist idempotent aggregation query for clickstream data
-aggregation_query_template = '''
-BEGIN;
-DELETE FROM clickstream_aggregated
-WHERE click_date = '{{ execution_date }}'::DATE;
-INSERT INTO clickstream_aggregated
-SELECT click_timestamp::DATE AS click_date,
-    SUM(CASE WHEN is_ad_display_event THEN 1 ELSE 0 END) AS nb_ad_display_events,
-    SUM(CASE WHEN is_ad_search_event THEN 1 ELSE 0 END) AS nb_ad_search_events
-FROM clickstream
-WHERE click_timestamp::DATE = '{{ execution_date }}'::DATE
-GROUP BY 1;
-COMMIT;
-'''
+#aggregation_query_template = '''
+#BEGIN;
+#DELETE FROM clickstream_aggregated
+#WHERE click_date = '{{ execution_date }}'::DATE;
+#INSERT INTO clickstream_aggregated
+#SELECT click_timestamp::DATE AS click_date,
+#    SUM(CASE WHEN is_ad_display_event THEN 1 ELSE 0 END) AS nb_ad_display_events,
+#    SUM(CASE WHEN is_ad_search_event THEN 1 ELSE 0 END) AS nb_ad_search_events
+#FROM clickstream
+#WHERE click_timestamp::DATE = '{{ execution_date }}'::DATE
+#GROUP BY 1;
+#COMMIT;
+#'''
 
 # A simple postgres SQL task execution
-aggregation_task = PostgresOperator(
-    task_id='aggregate_clickstream_data',
-    postgres_conn_id=target_db,
-    sql=aggregation_query_template,
-    autocommit=False,
-    dag=dag)
+#aggregation_task = PostgresOperator(
+#    task_id='aggregate_clickstream_data',
+#    postgres_conn_id=target_db,
+#    sql=aggregation_query_template,
+#    autocommit=False,
+#    dag=dag)
 
 
 
@@ -168,6 +169,7 @@ t4 = BashOperator(
 templated_command = """
 {% for i in range(5) %}
     echo "{{ ds }}"
+    echo "{{ execution_date.year }}/{{ execution_date.month }}/{{ ds }}"
     echo "{{ macros.ds_add(ds, 7)}}"
     echo "{{ params.my_param }}"
 {% endfor %}
@@ -186,10 +188,9 @@ t7 = PythonOperator(
     python_callable=_print_exec_date,
     dag=dag,
     provide_context=True
-
 )
 
 
-
-t1 >> t3
-t1 >> t4
+dummy_task >> t1
+t1 >> t6
+t1 >> t7

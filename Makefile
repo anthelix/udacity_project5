@@ -85,4 +85,4 @@ aws: redshift conn
 
 stop:
 	$(info Make: Stopping Redshift.)
-	@nohup python3 ./redshift/myclusterend.py &
+	@python3 ./redshift/myclusterend.py &
