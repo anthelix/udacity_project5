@@ -24,6 +24,7 @@ from airflow.operators.udacity_plugin import MyFirstSensor
 from airflow.operators.udacity_plugin import StageToRedshiftOperator
 from airflow.operators.udacity_plugin import LoadFactOperator
 from airflow.operators.udacity_plugin import LoadDimensionOperator
+from airflow.operators.udacity_plugin import DataQualityOperator
 
 from helpers import CreateTables, SqlQueries
 
@@ -79,12 +80,13 @@ default_args = {
 #########################################################################
 # DAGS  ## changer starttime, schedule interval.
 dag = DAG(
-    'ETL_Sparkify_v3',
+    'ETL_Sparkify_v30',
     default_args=default_args,
     description='ETL with from S3 to Redshift with Airflow',
     start_date=datetime.datetime(2018, 11, 1, 0, 0, 0, 0),
     end_date=datetime.datetime(2018, 12, 1, 0, 0, 0, 0),
     schedule_interval='@daily',
+    concurrency=1,
     max_active_runs=1
 )
 
@@ -100,7 +102,7 @@ start_operator = DummyOperator(task_id='Begin_execution',  dag=dag)
 #    dag=dag,
 #    postgres_conn_id="redshift",
 #    sql=CreateTables.staging_events_table_create
-)
+#)
 
 #create_staging_songs_table = PostgresOperator(
 #    task_id="create_staging_songs",
@@ -121,22 +123,19 @@ copy_songs_task = StageToRedshiftOperator(
     target_table= "staging_songs",
     s3_bucket= "udacity-dend",
     s3_key= "song_data",
-    region= "us-west-2",
-    json_format="auto",
+    custom= " json 'auto' compupdate off region 'us-west-2'"
 )
 
 copy_logs_task = StageToRedshiftOperator(
-    task_id="copy_events_from_s3_to_staging_songs_redshift",
+    task_id="copy_events_from_s3_to_staging_events_redshift",
     dag=dag,
     redshift_conn_id="redshift",
     aws_credentials_id="aws_credential",
     create_tbl=CreateTables.staging_events_table_create,
     target_table="staging_events",
     s3_bucket="udacity-dend",
-    #s3_key="log_data/{execution_date.year}/{execution_date.month}/{ds}-events.json",
-    s3_key= "log_data",
-    region= "us-west-2",
-    json_format="log_json_path.json",
+    s3_key="log_data",
+    custom="format as json 's3://udacity-dend/log_json_path.json'",
 )
 
 # Create and load facts table
@@ -151,9 +150,9 @@ load_songplays_table = LoadFactOperator(
     task_id='load_songplays_fact_table',
     dag=dag,
     redshift_conn_id="redshift",
-    target_table="songplays",
+    target_table="songplays",    
     create_tbl=CreateTables.songplay_table_create,
-    sql=SqlQueries.songplay_table_insert,
+    source=SqlQueries.songplay_table_insert,
 )
 
 
@@ -161,70 +160,70 @@ load_songplays_table = LoadFactOperator(
 # Create and load dims table # check loaded
 
 load_artist_dimension_table = LoadDimensionOperator(
-    task_id='load_artists_dim_table',
+    task_id='load_artist_dim_table',
     redshift_conn_id='redshift',
-    create_tbl=CreateTables.artist_table_create,
-    target_table= "dimArtist",
+    create_tbl= CreateTables.artist_table_create,
+    target_table= "artists",
     source_table= SqlQueries.artist_table_insert,
-    append_data=True,
+    append_data=False,
     dag=dag
 )
 
 check_artist = HasRowsOperator(
-    task_id='check_artists_rows',
+    task_id='check_artist_rows',
     redshift_conn_id='redshift',
-    table= "dimArtist",
+    table= "artists",
     dag=dag
 )
 
 load_song_dimension_table = LoadDimensionOperator(
-    task_id='load_songs_dim_table',
+    task_id='load_song_dim_table',
     redshift_conn_id='redshift',
-    create_tbl=CreateTables.song_table_create,
-    target_table= "dimSong",
+    create_tbl= CreateTables.song_table_create,
+    target_table= "songs",
     source_table= SqlQueries.song_table_insert,
-    append_data=True,
+    append_data=False,
     dag=dag
 )
 
 check_song = HasRowsOperator(
-    task_id='check_songs_rows',
+    task_id='check_song_rows',
     redshift_conn_id='redshift',
-    table="dimSong",
+    table="songs",
     dag=dag
 )
 
 load_time_dimension_table = LoadDimensionOperator(
     task_id='load_time_dim_table',
     redshift_conn_id='redshift',
-    create_tbl=CreateTables.song_table_create,
-    target_table= "dimTime",
+    create_tbl= CreateTables.time_table_create,
+    target_table= "time",
     source_table= SqlQueries.time_table_insert,
-    append_data=True,
+    append_data=False,
     dag=dag
 )
 
 check_time = HasRowsOperator(
     task_id='check_time_rows',
     redshift_conn_id='redshift',
-    table= "dimTime",
+    table= "time",
     dag=dag
 )
 
 load_user_dimension_table = LoadDimensionOperator(
     task_id='Load_user_dim_table',
     redshift_conn_id='redshift',
-    create_tbl=CreateTables.song_table_create,
-    target_table= "dimUser",
+    create_tbl= CreateTables.user_table_create,
+    target_table= "users",
     source_table= SqlQueries.user_table_insert,
-    append_data=True,
+    append_data=False,
     dag=dag
 )
 
 check_user = HasRowsOperator(
-    task_id= 'check_users_rows',
+    task_id= 'check_user_rows',
     redshift_conn_id='redshift',
-    table= "dimUser",
+    table= "users",
     dag=dag
 )
 

@@ -63,7 +63,7 @@ default_args = {
 target_db = 'mini-warehouse-db'
 
 dag = DAG(
-    'chadag_dailyBackSlashDsS',
+    'chadag_dailyBackSlash',
     start_date=datetime.datetime(2018, 11, 1, 0, 0, 0, 0),
     schedule_interval='@daily',
     default_args=default_args,

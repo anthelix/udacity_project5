@@ -31,29 +31,29 @@ class LoadFactOperator(BaseOperator):
     @apply_defaults
     def __init__(self,
                  redshift_conn_id = "",
-                 create_tbl="",
                  target_table="",
-                 source_table="",
+                 create_tbl="",
+                 source="",
                  *args, **kwargs):
 
         super(LoadFactOperator, self).__init__(*args, **kwargs)
         self.redshift_conn_id = redshift_conn_id
         self.create_tbl = create_tbl
         self.target_table = target_table
-        self.sql = sql
+        self.source = source
 
     def execute(self, context):
         self.log.info("LoadFactOperator is processing")
-        delete_data = "TRUNCATE TABLE {}"
-
         redshift = PostgresHook(postgres_conn_id=self.redshift_conn_id)
+
+        self.log.info(f"**********  {self.target_table}")
+
+        # create stage table if not exists
+        self.log.info('Create {} if not exists'.format(self.target_table))
+        redshift.run(self.create_tbl)
+
         self.log.info("Inserting data into {}".format(self.target_table))
         redshift.run(self.create_tbl)
-        redshift.run(delete_data.format(self.target_table))
-        insert_facts_templated = LoadFactOperator.insert_template.format(
-            self.target_table,
-            self.source_table
-        )
-        redshift.run(insert_facts_templated)
-
+     
+        redshift.run("INSERT INTO {} {}".format(self.target_table, self.source))
         self.log.info("LoadFactOperator end !!")

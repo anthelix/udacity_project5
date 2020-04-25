@@ -19,30 +19,30 @@ class DataQualityOperator(BaseOperator):
     le test comparerait le résultat de l'instruction SQL au résultat attendu.
     """
     ui_color = '#89DA59'
+    check_template = """
+                    SELECT COUNT(*) FROM (SELECT a.attname
+                            FROM   pg_index i
+                            JOIN   pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+                            WHERE  i.indrelid = 'contacts'::regclass
+                            AND    i.indisprimary) as foo
+                    WHERE foo is NULL;
+    """
 
     @apply_defaults
     def __init__(self,
                 redshift_conn_id = "",
                 target_table="",
+                expected_ans="",
                  *args, **kwargs):
 
         super(DataQualityOperator, self).__init__(*args, **kwargs)
         self.redshift_conn_id = redshift_conn_id
         self.target_table = target_table
+        self.expected_ans = expected_ans
 
     def execute(self, context):
         self.log.info(f'DataQualityOperator processing {target_table}')
         redshift = PostgresHook(postgres_conn_id=self.redshift_conn_id)
+        check_records = redshift.get_records(check_template)[0]
 
-        records = redshift.get_records(self.target_table)
 
-    
-
-#    SELECT col.column_name 
-#    FROM information_schema.table_constraints tc 
-#    INNER JOIN information_schema.key_column_usage col 
-#       ON col.Constraint_Name = tc.Constraint_Name 
-#    AND col.Constraint_schema = tc.Constraint_schema 
-#    WHERE lower(tc.Constraint_Type) = lower('Primary Key') AND col.Table_name = 'mytable'
-#
-#

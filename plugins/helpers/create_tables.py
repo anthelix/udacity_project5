@@ -1,99 +1,108 @@
 class CreateTables:
+
+    def dropTable(table):
+        droptable = "DROP TABLE IF EXISTS " + table
+        return droptable
+
     staging_events_table_create = ("""CREATE TABLE IF NOT EXISTS public.staging_events
     (
-        artist            varchar(256),
-        auth              varchar(45),
-        firstName         varchar(50),
-        gender            varchar(1),
-        itemInSession     smallint ,
-        lastName          varchar(50),
-        length            float,
-        level             varchar(10),
-        location          varchar(256),
-        method            varchar(10),
-        page              varchar(50),
-        registration      float,
-        sessionId         varchar(256), 
-        song              varchar(256), 
-        status            smallint, 
-        ts                bigint,
-        userAgent         varchar(1024),
-        userId            int
+        artist varchar(256),
+        auth varchar(256),
+        firstname varchar(256),
+        gender varchar(256),
+        iteminsession int4,
+        lastname varchar(256),
+        length numeric(18,0),
+        "level" varchar(256),
+        location varchar(256),
+        "method" varchar(256),
+        page varchar(256),
+        registration numeric(18,0),
+        sessionid int4,
+        song varchar(256),
+        status int4,
+        ts int8,
+        useragent varchar(256),
+        userid int4
     );
     """)
 
     staging_songs_table_create = ("""CREATE TABLE IF NOT EXISTS public.staging_songs
     (
-        num_songs         bigint, 
-        artist_id         varchar(20), 
-        artist_latitude   float, 
-        artist_longitude  float, 
-        artist_location   varchar(256),  
-        artist_name       varchar(256), 
-        song_id           varchar(20),
-        title             varchar(256),  
-        duration          float, 
-        year              int
+        num_songs int4,
+        artist_id varchar(256),
+        artist_name varchar(256),
+        artist_latitude numeric(18,0),
+        artist_longitude numeric(18,0),
+        artist_location varchar(256),
+        song_id varchar(256),
+        title varchar(256),
+        duration numeric(18,0),
+        "year" int4
     );
     """)
 
 
     ## Dimension Tables
-    user_table_create = ("""CREATE TABLE IF NOT EXISTS public.dimUser
+    user_table_create = ("""CREATE TABLE IF NOT EXISTS public.users
     (
-        user_id bigint NOT NULL PRIMARY KEY SORTKEY,
-        first_name varchar,
-        last_name varchar,
-        gender varchar(1),
-        level varchar NOT NULL
+        userid int4 NOT NULL,
+        first_name varchar(256),
+        last_name varchar(256),
+        gender varchar(256),
+        "level" varchar(256),
+        CONSTRAINT users_pkey PRIMARY KEY (userid)
     );
     """)
 
-    song_table_create = ("""CREATE TABLE IF NOT EXISTS public.dimSong
+    song_table_create = ("""CREATE TABLE IF NOT EXISTS public.songs
     (
-        song_id varchar NOT NULL PRIMARY KEY SORTKEY,
-        title varchar NOT NULL,
-        artist_id varchar NOT NULL,
-        year int,
-        duration numeric
+        songid varchar(256) NOT NULL,
+        title varchar(256),
+        artistid varchar(256),
+        "year" int4,
+        duration numeric(18,0),
+        CONSTRAINT songs_pkey PRIMARY KEY (songid)
     );
     """)
 
-    artist_table_create = ("""CREATE TABLE IF NOT EXISTS public.dimArtist
+    artist_table_create = ("""CREATE TABLE IF NOT EXISTS public.artists
     (
-        artist_id varchar NOT NULL PRIMARY KEY SORTKEY,
-        name varchar NOT NULL,
-        location varchar,
-        latitude numeric,
-        longitude numeric
+        artistid varchar(256) NOT NULL PRIMARY KEY,
+        name varchar(256),
+        location varchar(256),
+        lattitude numeric(18,0),
+        longitude numeric(18,0)
     );
     """)
 
-    time_table_create = ("""CREATE TABLE IF NOT EXISTS public.dimTime
+    time_table_create = ("""CREATE TABLE IF NOT EXISTS public."time"
     (
-        start_time timestamp NOT NULL PRIMARY KEY DISTKEY SORTKEY,
-        hour int,
-        day int,
-        week int,
-        month int,
-        year int,
-        weekday varchar
+        start_time timestamp NOT NULL,
+        "hour" int4,
+        "day" int4,
+        week int4,
+        "month" varchar(256),
+        "year" int4,
+        weekday varchar(256),
+        CONSTRAINT time_pkey PRIMARY KEY (start_time)
     );
     """)
 
 
     ## Fact Tables
-    songplay_table_create = ("""CREATE TABLE IF NOT EXISTS public.factSongplay
+    songplay_table_create = ("""CREATE TABLE IF NOT EXISTS public.songplays
     (
-        songplay_id int IDENTITY(0,1) PRIMARY KEY,
-        start_time timestamp NOT NULL DISTKEY,
-        user_id bigint NOT NULL ,
-        level varchar NOT NULL,
-        song_id varchar,
-        artist_id varchar SORTKEY,
-        session_id varchar NOT NULL,
-        location varchar,
-        user_agent varchar
+        playid varchar(32) NOT NULL,
+        start_time timestamp NOT NULL,
+        userid int4 NOT NULL,
+        "level" varchar(256),
+        songid varchar(256),
+        artistid varchar(256),
+        sessionid int4,
+        location varchar(256),
+        user_agent varchar(256),
+        CONSTRAINT songplays_pkey PRIMARY KEY (playid)
     );
     """)
 
