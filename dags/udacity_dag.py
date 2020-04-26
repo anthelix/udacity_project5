@@ -19,8 +19,6 @@ from airflow.operators.python_operator import PythonOperator
 from airflow.operators.postgres_operator import PostgresOperator
 
 from airflow.operators.udacity_plugin import HasRowsOperator
-from airflow.operators.udacity_plugin import MyFirstOperator
-from airflow.operators.udacity_plugin import MyFirstSensor
 from airflow.operators.udacity_plugin import StageToRedshiftOperator
 from airflow.operators.udacity_plugin import LoadFactOperator
 from airflow.operators.udacity_plugin import LoadDimensionOperator
@@ -66,7 +64,7 @@ default_args = {
     'email_on_retry': False,
     'retries': 3,
     'provide_context': True, # access to ds, previous_ds
-    'retry_delay': timedelta(minutes=1),                    # TODO: CHANGE BEFORE PUSH
+    'retry_delay': timedelta(seconds=30),                    # TODO: CHANGE BEFORE PUSH
     #'catchup': True # Run only the last DAG
 }
 
@@ -80,13 +78,13 @@ default_args = {
 #########################################################################
 # DAGS  ## changer starttime, schedule interval.
 dag = DAG(
-    'ETL_Sparkify_v30',
+    'ETL_Sparkify_v8',
     default_args=default_args,
     description='ETL with from S3 to Redshift with Airflow',
     start_date=datetime.datetime(2018, 11, 1, 0, 0, 0, 0),
     end_date=datetime.datetime(2018, 12, 1, 0, 0, 0, 0),
     schedule_interval='@daily',
-    concurrency=1,
+    # concurrency=1,
     max_active_runs=1
 )
 
@@ -126,6 +124,13 @@ copy_songs_task = StageToRedshiftOperator(
     custom= " json 'auto' compupdate off region 'us-west-2'"
 )
 
+check_staging_songs = HasRowsOperator(
+    task_id= 'check_songs_rows',
+    redshift_conn_id='redshift',
+    table= "staging_songs",
+    dag=dag
+)
+
 copy_logs_task = StageToRedshiftOperator(
     task_id="copy_events_from_s3_to_staging_events_redshift",
     dag=dag,
@@ -138,13 +143,13 @@ copy_logs_task = StageToRedshiftOperator(
     custom="format as json 's3://udacity-dend/log_json_path.json'",
 )
 
-# Create and load facts table
-#create_songsplays = PostgresOperator(
-#    task_id='create_facts_table',
-#    dag=dag,
-#    postgres_conn_id="redshift",
-#    sql=CreateTables.songplay_table_create,
-#)
+check_staging_events = HasRowsOperator(
+    task_id= 'check_events_rows',
+    redshift_conn_id='redshift',
+    table= "staging_events",
+    dag=dag
+)
+
 
 load_songplays_table = LoadFactOperator(
     task_id='load_songplays_fact_table',
@@ -155,7 +160,13 @@ load_songplays_table = LoadFactOperator(
     source=SqlQueries.songplay_table_insert,
 )
 
-
+check_songplays_quality = DataQualityOperator(
+    task_id = 'Control_songplays_quality',
+    redshift_conn_id='redshift',
+    target_table = "songplays",
+    pk = "playid",
+    dag=dag
+)
 
 # Create and load dims table # check loaded
 
@@ -169,10 +180,11 @@ load_artist_dimension_table = LoadDimensionOperator(
     dag=dag
 )
 
-check_artist = HasRowsOperator(
-    task_id='check_artist_rows',
+check_artist_quality = DataQualityOperator(
+    task_id = 'Control_artist_quality',
     redshift_conn_id='redshift',
-    table= "artists",
+    target_table = "artists",
+    pk = "artistid",
     dag=dag
 )
 
@@ -186,10 +198,11 @@ load_song_dimension_table = LoadDimensionOperator(
     dag=dag
 )
 
-check_song = HasRowsOperator(
-    task_id='check_song_rows',
+check_song_quality = DataQualityOperator(
+    task_id = 'Control_songs_quality',
     redshift_conn_id='redshift',
-    table="songs",
+    target_table = "songs",
+    pk = "songid",
     dag=dag
 )
 
@@ -203,10 +216,11 @@ load_time_dimension_table = LoadDimensionOperator(
     dag=dag
 )
 
-check_time = HasRowsOperator(
-    task_id='check_time_rows',
+check_time_quality = DataQualityOperator(
+    task_id = 'Control_start_time_quality',
     redshift_conn_id='redshift',
-    table= "time",
+    target_table = "time",
+    pk = "start_time",
     dag=dag
 )
 
@@ -220,13 +234,13 @@ load_user_dimension_table = LoadDimensionOperator(
     dag=dag
 )
 
-check_user = HasRowsOperator(
-    task_id= 'check_user_rows',
+check_user_quality = DataQualityOperator(
+    task_id = 'Control_data_quality',
     redshift_conn_id='redshift',
-    table= "users",
+    target_table = "users",
+    pk = "userid",
     dag=dag
 )
-
 
 templated_command = """
 {% for i in range(2) %}
@@ -255,8 +269,11 @@ start_operator >> t6
 start_operator  >> copy_songs_task
 start_operator >> copy_logs_task
 
-copy_songs_task >> middle_operator
-copy_logs_task  >> middle_operator
+copy_songs_task  >> check_staging_songs
+copy_logs_task  >> check_staging_events
+
+check_staging_songs >> middle_operator
+check_staging_events >> middle_operator
 
 middle_operator >> load_user_dimension_table
 middle_operator >> load_song_dimension_table
@@ -264,13 +281,15 @@ middle_operator >> load_time_dimension_table
 middle_operator >> load_artist_dimension_table
 middle_operator >> load_songplays_table 
 
-load_user_dimension_table   >> check_user
-load_song_dimension_table   >> check_song
-load_time_dimension_table   >> check_time
-load_artist_dimension_table >> check_artist
+load_user_dimension_table   >> check_user_quality
+load_song_dimension_table   >> check_song_quality
+load_time_dimension_table   >> check_time_quality
+load_artist_dimension_table >> check_artist_quality
+load_songplays_table >> check_songplays_quality
 
-load_songplays_table >> end_operator
-check_user   >> end_operator
-check_song   >> end_operator
-check_time   >> end_operator
-check_artist >> end_operator
+
+check_songplays_quality >> end_operator
+check_user_quality   >> end_operator
+check_song_quality   >> end_operator
+check_time_quality   >> end_operator
+check_artist_quality >> end_operator
