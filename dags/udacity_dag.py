@@ -125,7 +125,7 @@ copy_songs_task = StageToRedshiftOperator(
 )
 
 check_staging_songs = HasRowsOperator(
-    task_id= 'check_songs_rows',
+    task_id= 'check_staging_table_rows',
     redshift_conn_id='redshift',
     table= "staging_songs",
     dag=dag
@@ -144,7 +144,7 @@ copy_logs_task = StageToRedshiftOperator(
 )
 
 check_staging_events = HasRowsOperator(
-    task_id= 'check_events_rows',
+    task_id= 'check_stagingg_events_rows',
     redshift_conn_id='redshift',
     table= "staging_events",
     dag=dag
@@ -161,7 +161,7 @@ load_songplays_table = LoadFactOperator(
 )
 
 check_songplays_quality = DataQualityOperator(
-    task_id = 'Control_songplays_quality',
+    task_id = 'songplays_quality',
     redshift_conn_id='redshift',
     target_table = "songplays",
     pk = "playid",
@@ -181,7 +181,7 @@ load_artist_dimension_table = LoadDimensionOperator(
 )
 
 check_artist_quality = DataQualityOperator(
-    task_id = 'Control_artist_quality',
+    task_id = 'artist_quality',
     redshift_conn_id='redshift',
     target_table = "artists",
     pk = "artistid",
@@ -199,7 +199,7 @@ load_song_dimension_table = LoadDimensionOperator(
 )
 
 check_song_quality = DataQualityOperator(
-    task_id = 'Control_songs_quality',
+    task_id = 'songs_quality',
     redshift_conn_id='redshift',
     target_table = "songs",
     pk = "songid",
@@ -217,7 +217,7 @@ load_time_dimension_table = LoadDimensionOperator(
 )
 
 check_time_quality = DataQualityOperator(
-    task_id = 'Control_start_time_quality',
+    task_id = 'time_quality',
     redshift_conn_id='redshift',
     target_table = "time",
     pk = "start_time",
@@ -235,7 +235,7 @@ load_user_dimension_table = LoadDimensionOperator(
 )
 
 check_user_quality = DataQualityOperator(
-    task_id = 'Control_data_quality',
+    task_id = 'user_quality',
     redshift_conn_id='redshift',
     target_table = "users",
     pk = "userid",
@@ -259,36 +259,32 @@ t6 = BashOperator(
     dag=dag,
 )
 
-middle_operator = DummyOperator(task_id='Middle_execution',  dag=dag)
 
 end_operator = DummyOperator(task_id='End_execution',  dag=dag)
 
 
 
-start_operator >> t6
 start_operator  >> copy_songs_task
 start_operator >> copy_logs_task
 
 copy_songs_task  >> check_staging_songs
 copy_logs_task  >> check_staging_events
 
-check_staging_songs >> middle_operator
-check_staging_events >> middle_operator
+check_staging_songs >> load_songplays_table
+check_staging_events >> load_songplays_table
 
-middle_operator >> load_user_dimension_table
-middle_operator >> load_song_dimension_table
-middle_operator >> load_time_dimension_table
-middle_operator >> load_artist_dimension_table
-middle_operator >> load_songplays_table 
+check_staging_events >> load_user_dimension_table
+check_staging_songs >> load_song_dimension_table
+check_staging_songs >> load_artist_dimension_table
+
+load_songplays_table >> check_songplays_quality
+check_songplays_quality >> load_time_dimension_table
 
 load_user_dimension_table   >> check_user_quality
 load_song_dimension_table   >> check_song_quality
 load_time_dimension_table   >> check_time_quality
 load_artist_dimension_table >> check_artist_quality
-load_songplays_table >> check_songplays_quality
 
-
-check_songplays_quality >> end_operator
 check_user_quality   >> end_operator
 check_song_quality   >> end_operator
 check_time_quality   >> end_operator
