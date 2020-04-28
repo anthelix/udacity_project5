@@ -134,10 +134,10 @@ To setup, I first needed to create infrastructure to run Airflow and Aws. It's l
     conda remove --name psyco --all # remove
     conda info --envs # check psyco setup
     ```
-* Then, setup the `./redshift/dwh.cfg` file with your AWS credentials
+Then, setup the `./redshift/dwh.cfg` file with your AWS credentials. The `mycluster.py` python script, create a roleArn, a Redshift Cluster and a connection with the Vpc default Group. 
 
 #### Makefile
-For now, we have "psyco" Conda env and Docker setup. This Makefile allows me to use commands in a simple way and often.
+For now, we have "psyco" Conda environment and Docker container setup. This Makefile allows me to use commands in a simple way and often.
 * Run `make` to get the help for this Makefile
 * In the root folder of this project, location of the Makefile file, 
     * `conda activate psyco`
@@ -147,6 +147,9 @@ For now, we have "psyco" Conda env and Docker setup. This Makefile allows me to 
     * `make run`
     * Once you do that, Airflow is running on your machine, and you can visit the UI by visiting http://localhost:8080/admin/
 
+#### At the end
+* `make clean` 
+* ` 
 
 #### Workflow: useful cmd 
 ```sh
@@ -198,8 +201,39 @@ If you want to run/test python script, you can do so like this:
 This creates hooks in Airflow that Dags can use. 
 ## Worflow
 ### Creating a Dag To Extract Files From S3, Transform and Load Tables To Redshift database
-```
+```py
+import datetime
+from airflow import DAG
+from airflow.operators.bash_operator import BashOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.postgres_operator import PostgresOperator
+from airflow.operators.subdag_operator import SubDagOperator
+from airflow.operators.udacity_plugin import (StageToRedshiftOperator,
+                                              LoadFactOperator,
+                                              LoadDimensionOperator,
+                                              DataQualityOperator,
+                                              HasRowsOperator)
+from helpers import CreateTables, SqlQueries
+from subdag import get_s3_to_redshift_subdag, get_dimTables_to_Redshift_subdag
 
+default_args = {
+    'owner': 'Sparkify & Co',
+    'depends_on_past': False,
+    'catchup': False,
+    'start_date': datetime.datetime(2018, 11, 1, 0, 0, 0, 0),
+    'end_date' : datetime.datetime(2018, 11, 30, 0, 0, 0, 0),
+    'email_on_retry': False,
+    'retries': 3,
+    'provide_context': True, # access to ds, previous_ds
+    'retry_delay': datetime.timedelta(minutes=5),
+    }
+dag = DAG(
+    'ETL_Sparkify_v3',
+    default_args=default_args,
+    description='ETL from S3 to Redshift with Airflow',
+    schedule_interval='@hourly', # schedule_interval='0 * * * *'
+    max_active_runs=1
+)
 ```
 ## Web Links
 

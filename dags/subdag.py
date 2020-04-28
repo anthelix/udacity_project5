@@ -35,6 +35,7 @@ def get_s3_to_redshift_subdag(
 
     info_task = BashOperator(
         task_id=f"Info_about_{parent_dag_name}.{task_id}",
+        dag=dag,
         depends_on_past=False,
         bash_command=templated_command,
     )
@@ -51,20 +52,15 @@ def get_s3_to_redshift_subdag(
         custom=custom
     )
 
-    sleep_task = BashOperator(
-        task_id='sleep',
-        depends_on_past=False,
-        bash_command='sleep 5',
-        retries=3,
-    )
-
     check_staging = HasRowsOperator(
         task_id=f"check_{target_table}_rows",
+        dag=dag,
         redshift_conn_id=redshift_conn_id,
         target_table=target_table,
     )
 
-    info_task >> copy_task >> sleep_task >> check_staging
+    info_task >> copy_task 
+    copy_task >> check_staging
     return dag
 
 
@@ -91,6 +87,7 @@ def get_dimTables_to_Redshift_subdag(
 
     info_task = BashOperator(
         task_id=f"Info_about_{parent_dag_name}.{task_id}_running",
+        dag=dag,
         depends_on_past=False,
         bash_command=templated_command,
     )
@@ -108,10 +105,12 @@ def get_dimTables_to_Redshift_subdag(
 
     check_dimension_quality = DataQualityOperator(
         task_id =f"{target_table}_quality",
+        dag=dag,
         redshift_conn_id=redshift_conn_id,
         target_table = target_table,
         pk = pk,
     )
 
-    info_task >> load_dimension_table >> check_dimension_quality
+    info_task >> load_dimension_table 
+    load_dimension_table >> check_dimension_quality
     return dag

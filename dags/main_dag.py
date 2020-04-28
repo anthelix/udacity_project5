@@ -56,7 +56,7 @@ dag = DAG(
     default_args=default_args,
     description='ETL from S3 to Redshift with Airflow',
     schedule_interval='@hourly', # schedule_interval='0 * * * *'
-    max_active_runs=2
+    max_active_runs=1
 )
 
 ####################################################################################
