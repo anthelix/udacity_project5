@@ -148,8 +148,8 @@ For now, we have "psyco" Conda environment and Docker container setup. This Make
     * Once you do that, Airflow is running on your machine, and you can visit the UI by visiting http://localhost:8080/admin/
 
 #### At the end
-* `make clean` 
-* ` 
+* `make clean` Down docker and remove files
+* `make stop` Down Redshift
 
 #### Workflow: useful cmd 
 ```sh
@@ -199,8 +199,15 @@ If you want to run/test python script, you can do so like this:
             port: 5439
         ```
 This creates hooks in Airflow that Dags can use. 
+
 ## Worflow
 ### Creating a Dag To Extract Files From S3, Transform and Load Tables To Redshift database
+
+#### Main DAG
+DAG :The top-level object is a Python object that defines the organization, structure and schedule of a workflow. Tasks in a specific workflow will be attached to it.
+
+Dag run: run-time version of a DAG with additional context (state, beginnig, end, success)
+
 ```py
 import datetime
 from airflow import DAG
@@ -224,7 +231,7 @@ default_args = {
     'end_date' : datetime.datetime(2018, 11, 30, 0, 0, 0, 0),
     'email_on_retry': False,
     'retries': 3,
-    'provide_context': True, # access to ds, previous_ds
+    'provide_context': True, 
     'retry_delay': datetime.timedelta(minutes=5),
     }
 dag = DAG(
@@ -235,6 +242,102 @@ dag = DAG(
     max_active_runs=1
 )
 ```
+This creates a DAG, planned to start every hour(the beginning of an hour) from 2018-11-1. If any of its task fails, it will be retried 3 times, at 5 minutes interval.
+
+#### Sub DAG skeleton
+
+Task : It;s a step in the DAG, for a specific Operator. Tasks made the DAG worflow logic with dependencies.
+
+Task instance : It's a run time specific execution task in the DAG. It's send by the scheduler to the worker in Airflow.
+
+Dependencies : Organize tasks instance.
+
+2 subdags performs basic hourly tasks on the database. 
+The first one run sql statements from s3 to Redshift, copying data in stagings tables then check success.
+* `get_s3_to_redshift_subdag()`
+```py
+def get_s3_to_redshift_subdag(
+        parent_dag_name,
+        task_id,
+        redshift_conn_id,
+        aws_credentials_id,
+        create_tbl,
+        target_table,
+        s3_bucket,
+        s3_key,
+        custom,
+        *args, **kwargs):
+
+    dag= DAG(
+        f"{parent_dag_name}.{task_id}",
+        **kwargs
+    )
+    
+    templated_command = """
+    echo "**************** {{ task.owner }}, {{ task.task_id }}"
+    echo "**************** The execution date : {{ ds }}"
+    echo "**************** {{ task_instance_key_str }} is running"
+    """
+
+    info_task = BashOperator()
+
+    copy_task = StageToRedshiftOperator()
+
+    check_staging = HasRowsOperator()
+
+    info_task >> copy_task 
+    copy_task >> check_staging
+    return dag
+```
+* `get_dimTables_to_Redshift_subdag()`
+
+The second one, run sql statements to copy fron staging tables to dimension tables and check if null values in the primary key column. 
+
+The sql code is provide in `./plugins/helpers/sql_queries.py`
+```py
+    user_table_insert = (""" SELECT distinct 
+                    userid, 
+                    firstname, 
+                    lastname, 
+                    gender, 
+                    level
+            FROM staging_events
+            WHERE page='NextSong'
+    """)
+```
+
+#### Operators
+Operator : It's a Python class to make specific operation used in a DAG. Here, I use standard operators (PostgresOperator, BashOperator) and define customize operators (StageToRedshiftOperator, DataQualityOperator, HasRowOperators)
+
+```py
+class HasRowsOperator(BaseOperator):
+
+    @apply_defaults
+    def __init__(self,
+                 redshift_conn_id="",
+                 target_table="",
+                 *args, **kwargs):
+
+        super(HasRowsOperator, self).__init__(*args, **kwargs)
+        self.target_table = target_table
+        self.redshift_conn_id = redshift_conn_id
+
+    def execute(self, context):
+        self.log.info('********** HasRowsOperator is processing')
+        redshift_hook = PostgresHook(self.redshift_conn_id)
+        records = redshift_hook.get_records(f"SELECT COUNT(*) FROM {self.target_table}")
+        self.log.info(f"********** Running for {self.target_table}")
+        if len(records) < 1 or len(records[0]) < 1:
+            raise ValueError(f"********** Data quality check failed. {self.target_table} returned no results")
+        num_records = records[0][0]
+        if num_records < 1:
+            raise ValueError(f"********** Data quality check failed. {self.target_table} contained 0 rows")
+        logging.info(f"********** Data quality on table {self.target_table} check passed with {records[0][0]} records")
+        self.log.info(f"********** HasRowsOperator end !!")
+
+```
+
+
 ## Web Links
 
 
@@ -242,4 +345,4 @@ dag = DAG(
 
 * [Go Data Friven](https://godatadriven.com/blog/the-zen-of-python-and-apache-airflow/)
 
-* []()
+* [ETL best practices with Airflow](https://gtoonstra.github.io/etl-with-airflow/index.html)
