@@ -49,21 +49,22 @@ class LoadDimensionOperator(BaseOperator):
         self.append_data = append_data
        
     def execute(self, context):
-        self.log.info('LoadDimensionOperator is processing')
+        self.log.info('********** LoadDimensionOperator is processing')
+        # get hooks
         redshift = PostgresHook(postgres_conn_id=self.redshift_conn_id)
 
 
         # create stage table if not exists
-        self.log.info('Create {} if not exists'.format(self.target_table))
+        self.log.info('********** Create {} if not exists'.format(self.target_table))
         redshift.run(self.create_tbl)
 
-        self.log.info(f"**********  {self.target_table}")
+        self.log.info(f"********** Running for {self.target_table}")
 
+        # delete data before inserting
         if self.append_data == False:
                 redshift.run("TRUNCATE TABLE {}".format(self.target_table))
-        self.log.info(f"**********  {self.target_table}")
-
-        self.log.info("Inserting data into {}".format(self.target_table))
+        # insert anyway
+        self.log.info("********** Inserting data into {}".format(self.target_table))
  
         redshift.run("INSERT INTO {} {}".format(self.target_table, self.source_table))
-        self.log.info("LoadDimensionOperator end !!")
+        self.log.info("********** LoadDimensionOperator end !!")

@@ -79,9 +79,8 @@ class StageToRedshiftOperator(BaseOperator):
 
 
     def execute(self, context):
-        self.log.info('StageToRedshiftOperator is processing')
-        self.log.info(f"**********  {self.s3_key}")
-        self.log.info(f"**********  {self.s3_bucket}")
+        self.log.info('**********  StageToRedshiftOperator is processing')
+
         # get hooks
         aws_hook = AwsHook(self.aws_credentials_id)
         redshift_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
@@ -92,18 +91,16 @@ class StageToRedshiftOperator(BaseOperator):
         redshift_hook.run(dropTable)
 
         # create stage table if not exists
-        self.log.info('Create {} if not exists'.format(self.target_table))
+        self.log.info('********** Create {} if not exists'.format(self.target_table))
         redshift_hook.run(self.create_tbl)        
 
-        self.log.info(f"**********  {self.s3_key}")
         # copy data from s3 to redshift
-        self.log.info('Copying data from s3 to Redshift in ' + self.target_table)
+        self.log.info('********** Copying data from s3 to Redshift in ' + self.target_table)
         #rendered_key = self.s3_key.format(**context)
         #self.log.info(f"**********  {rendered_key}")
 
         #self.log.info(f'rendered_key : {rendered_key}')
         s3_path = "s3://" + self.s3_bucket + "/" + self.s3_key
-        self.log.info(f's3_path : {s3_path}')
         self.log.info(f"********** {s3_path}")
 
         copy_formated = StageToRedshiftOperator.copy_query_template.format(
@@ -113,10 +110,9 @@ class StageToRedshiftOperator(BaseOperator):
             credentials.secret_key,
             self.custom,
         )
-        self.log.info(f'Running {copy_formated}')
         redshift_hook.run(copy_formated)
 
-        self.log.info("StageToRedshiftOperator end !!")
+        self.log.info("********** StageToRedshiftOperator end !!")
 
 
 

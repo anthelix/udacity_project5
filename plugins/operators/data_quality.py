@@ -45,7 +45,7 @@ class DataQualityOperator(BaseOperator):
         self.pk = pk
 
     def execute(self, context):
-        self.log.info(f'DataQualityOperator processing {self.target_table}')
+        self.log.info(f'********** DataQualityOperator processing {self.target_table}')
         redshift = PostgresHook(self.redshift_conn_id)
        
         
@@ -58,12 +58,15 @@ class DataQualityOperator(BaseOperator):
         num_null = null_records[0][0]
         num = records[0][0]
 
-        self.log.info(f"Data quality on table {self.target_table} check passed with {records[0][0]} records")
-        self.log.info(f"Data quality on table {self.target_table} check passed with {null_records[0][0]} null records")
+        self.log.info(f"********** Table {self.target_table} passe with {null_records[0][0]} null records")
+        if len(records) < 1 or len(records[0]) < 1:
+            raise ValueError(f"********** Data quality check failed. {self.target_table} returned no results")
         
         if num_null > 0: 
-            raise ValueError(f"Data quality check failed. {self.target_table} contained {null_records[0][0]} null values")
-        self.log.info(f"Data quality on table {self.target_table} check passed with {records[0][0]} records")
+            raise ValueError(f"********** Data quality check failed. {self.target_table} contained {null_records[0][0]} null values")
+        self.log.info(f"********** Data quality on table {self.target_table} check passed with {records[0][0]} records none null")
+        self.log.info(f"********** DataQualityOperator end !!")
+
 
         #check_formated = DataQualityOperator.check_template.format(self.target_table)
         #check_records2 = redshift.get_records(check_formated)[0]

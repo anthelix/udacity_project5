@@ -1,6 +1,6 @@
 {
 	"variables_config": {
-		"aws_default_region": "eu-east-2",
+		"aws_default_region": "eu-west-2",
 		"s3_bucket": "udacity-dend",
 		"source_path": "/usr/local/airflow/data",
 		"s3_prefix": "data-pipelines"}

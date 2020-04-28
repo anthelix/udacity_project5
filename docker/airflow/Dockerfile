@@ -4,7 +4,8 @@ USER root
 
 RUN set -xe \
   && pip install papermill flake8 boto3 \
-	  awscli \
+    botocore \
+	  awscli --upgrade \
 	  sql_magic \
     apache-airflow[postgres,s3] \
   && python3 -m ipykernel install

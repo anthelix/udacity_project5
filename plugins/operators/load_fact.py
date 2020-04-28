@@ -43,17 +43,18 @@ class LoadFactOperator(BaseOperator):
         self.source = source
 
     def execute(self, context):
-        self.log.info("LoadFactOperator is processing")
+        self.log.info("********** LoadFactOperator is processing")
+        # get hooks
         redshift = PostgresHook(postgres_conn_id=self.redshift_conn_id)
 
-        self.log.info(f"**********  {self.target_table}")
+        self.log.info(f"********** Running for {self.target_table}")
 
         # create stage table if not exists
-        self.log.info('Create {} if not exists'.format(self.target_table))
+        self.log.info('********** Create {} if not exists'.format(self.target_table))
         redshift.run(self.create_tbl)
 
-        self.log.info("Inserting data into {}".format(self.target_table))
-        redshift.run(self.create_tbl)
+        self.log.info("********** Inserting data into {}".format(self.target_table))
+        #redshift.run(self.create_tbl)
      
         redshift.run("INSERT INTO {} {}".format(self.target_table, self.source))
-        self.log.info("LoadFactOperator end !!")
+        self.log.info("********** LoadFactOperator end !!")
