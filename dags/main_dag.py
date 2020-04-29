@@ -1,14 +1,6 @@
-# with staging functions
-# donr't use this .py
-# prends et efface
 
-#from datetime import timedelta
 import datetime
-#import airflow
-#import logging
-#from airflow.models import Variable
 from airflow import DAG
-#from airflow.plugins_manager import AirflowPlugin
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.postgres_operator import PostgresOperator
@@ -24,14 +16,6 @@ from airflow.operators.udacity_plugin import (StageToRedshiftOperator,
 from helpers import CreateTables, SqlQueries
 from subdag import get_s3_to_redshift_subdag, get_dimTables_to_Redshift_subdag
 
-########################################################################
-
-#########################################################################
-# edit the .dags/config/variables.json
-
-# docker-compose run --rm webserver airflow variables --import /usr/local/airflow/dags/config/variables.json
-# docker-compose run --rm webserver airflow variables --get s3_bucket
-# docker-compose run --rm webserver airflow variables --set var4 value4]
 
 default_args = {
     'owner': 'Sparkify & Co',
@@ -49,10 +33,8 @@ default_args = {
 #AWS_KEY = os.environ.get('AWS_KEY')
 #AWS_SECRET = os.environ.get('AWS_SECRET')
 
-
-# DAGS  ## changer starttime, schedule interval.
 dag = DAG(
-    'ETL_Sparkify_v3',
+    'ETL_Sparkify_t3',
     default_args=default_args,
     description='ETL from S3 to Redshift with Airflow',
     schedule_interval='@hourly', # schedule_interval='0 * * * *'
@@ -70,12 +52,13 @@ start_operator = DummyOperator(task_id='Begin_execution',  dag=dag)
 staging_songs_task_id = "staging_songs_subdag"
 staging_songs_task = SubDagOperator(
     subdag=get_s3_to_redshift_subdag(
-        "ETL_Sparkify_v3", #name parent dag
-        staging_songs_task_id, #task_id
-        "redshift", #redshift_conn_id
-        "aws_credential", #aws_credentials_id
-        CreateTables.staging_songs_table_create, # create_tbl
-        "staging_songs", #target_table
+        "ETL_Sparkify_t3",                          #name parent dag
+        staging_songs_task_id,                      #task_id
+        "redshift",                                 #redshift_conn_id
+        "aws_credential",                           #aws_credentials_id
+        create_tbl=CreateTables.staging_songs_table_create,   
+        target_table="staging_songs",                            
+        sql_row=SqlQueries.has_rows,                       
         s3_bucket= "udacity-dend",
         s3_key= "song_data",
         custom= " json 'auto' compupdate off region 'us-west-2'",
@@ -88,12 +71,13 @@ staging_songs_task = SubDagOperator(
 staging_events_task_id = "staging_events_subdag"
 staging_events_task = SubDagOperator(
     subdag=get_s3_to_redshift_subdag(
-        "ETL_Sparkify_v3", #name parent dag
-        staging_events_task_id, #task_id
-        "redshift", #redshift_conn_id
-        "aws_credential", #aws_credentials_id
-        CreateTables.staging_events_table_create, # create_tbl
-        "staging_events", #target_table
+        "ETL_Sparkify_t3",                          #name parent dag
+        staging_events_task_id,                     #task_id
+        "redshift",                                 #redshift_conn_id
+        "aws_credential",                           #aws_credentials_id
+        create_tbl=CreateTables.staging_events_table_create,   #create_tbl
+        target_table="staging_events",                           #target_table
+        sql_row=SqlQueries.has_rows,                        #count rows
         s3_bucket= "udacity-dend",
         s3_key= "log_data",
         custom="format as json 's3://udacity-dend/log_json_path.json'",
@@ -114,6 +98,7 @@ load_songplays_table = LoadFactOperator(
     target_table="songplays",    
     create_tbl=CreateTables.songplay_table_create,
     source=SqlQueries.songplay_table_insert,
+    
 )
 
 check_songplays_quality = DataQualityOperator(
@@ -121,6 +106,8 @@ check_songplays_quality = DataQualityOperator(
     redshift_conn_id='redshift',
     target_table = "songplays",
     pk = "playid",
+    sql_row=SqlQueries.has_rows_songplays,
+    sql_quality=SqlQueries.has_null_songplays,
     dag=dag
 )
 ####################################################################################
@@ -130,12 +117,14 @@ check_songplays_quality = DataQualityOperator(
 load_artists_dimension_table_id = "load_artists_dimension_table_subdag"
 load_artists_dimension_table_task = SubDagOperator(
     subdag=get_dimTables_to_Redshift_subdag(
-        "ETL_Sparkify_v3", #name parent dag
+        "ETL_Sparkify_t3", #name parent dag
         load_artists_dimension_table_id, #task_id
         "redshift", #redshift_conn_id
-        CreateTables.artist_table_create, # create_tbl
-        "artists", #target_table
-        SqlQueries.artist_table_insert, # source_table
+        create_tbl=CreateTables.artist_table_create, # create_tbl
+        target_table="artists", #t
+        source_table=SqlQueries.artist_table_insert, # source_table
+        sql_row=SqlQueries.has_rows_artists,
+        sql_quality=SqlQueries.has_null_artists,
         append_data=False,
         pk = "artistid",
         start_date=datetime.datetime(2018, 11, 1, 0, 0, 0, 0),
@@ -147,12 +136,14 @@ load_artists_dimension_table_task = SubDagOperator(
 load_songs_dimension_table_id = "load_songs_dimension_table_subdag"
 load_songs_dimension_table_task = SubDagOperator(
     subdag=get_dimTables_to_Redshift_subdag(
-        "ETL_Sparkify_v3", #name parent dag
+        "ETL_Sparkify_t3", #name parent dag
         load_songs_dimension_table_id, #task_id
         "redshift", #redshift_conn_id
-        CreateTables.song_table_create, # create_tbl
-        "songs", #target_table
-        SqlQueries.song_table_insert, # source_table
+        create_tbl=CreateTables.song_table_create, # create_tbl
+        target_table="songs", #target_table
+        source_table=SqlQueries.song_table_insert, # source_table
+        sql_row=SqlQueries.has_rows_songs,
+        sql_quality=SqlQueries.has_null_songs,
         append_data=False,
         pk = "songid",
         start_date=datetime.datetime(2018, 11, 1, 0, 0, 0, 0),
@@ -164,12 +155,14 @@ load_songs_dimension_table_task = SubDagOperator(
 load_time_dimension_table_id = "load_time_dimension_table_subdag"
 load_time_dimension_table_task = SubDagOperator(
     subdag=get_dimTables_to_Redshift_subdag(
-        "ETL_Sparkify_v3", #name parent dag
+        "ETL_Sparkify_t3", #name parent dag
         load_time_dimension_table_id, #task_id
         "redshift", #redshift_conn_id
-        CreateTables.time_table_create, # create_tbl
-        "time", #target_table
-        SqlQueries.time_table_insert, # source_table
+        create_tbl=CreateTables.time_table_create, # create_tbl
+        target_table="time", #target_table
+        source_table=SqlQueries.time_table_insert, # source_table
+        sql_row=SqlQueries.has_rows_time,
+        sql_quality=SqlQueries.has_null_time,
         append_data=False,
         pk = "start_time",
         start_date=datetime.datetime(2018, 11, 1, 0, 0, 0, 0),
@@ -181,12 +174,14 @@ load_time_dimension_table_task = SubDagOperator(
 load_users_dimension_table_id = "load_users_dimension_table_subdag"
 load_users_dimension_table_task = SubDagOperator(
     subdag=get_dimTables_to_Redshift_subdag(
-        "ETL_Sparkify_v3", #name parent dag
+        "ETL_Sparkify_t3", #name parent dag
         load_users_dimension_table_id, #task_id
         "redshift", #redshift_conn_id
-        CreateTables.user_table_create, # create_tbl
-        "users", #target_table
-        SqlQueries.user_table_insert, # source_table
+        create_tbl=CreateTables.user_table_create, # 
+        target_table="users", #target_table
+        source_table=SqlQueries.user_table_insert, # 
+        sql_row=SqlQueries.has_rows_users,
+        sql_quality=SqlQueries.has_null_users,
         append_data=False,
         pk ="userid",
         start_date=datetime.datetime(2018, 11, 1, 0, 0, 0, 0),
@@ -197,10 +192,11 @@ load_users_dimension_table_task = SubDagOperator(
 
 
 end_operator = DummyOperator(task_id='End_execution',  dag=dag)
+
+
 ###############################################################################
 # DEPENDENCIES
 ###############################################################################
-
 
 start_operator >> staging_songs_task
 start_operator >> staging_events_task

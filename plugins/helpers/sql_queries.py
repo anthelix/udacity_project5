@@ -56,3 +56,22 @@ class SqlQueries:
                      extract(dayofweek from start_time)
             FROM songplays
     """)
+
+    has_rows_songplays = (""" SELECT COUNT(*) FROM songplays""")
+    has_null_songplays = (""" SELECT COUNT(*) FROM songplays WHERE playid is NULL""")
+    
+    has_rows_artists = (""" SELECT COUNT(*) FROM artists""")
+    has_null_artists = (""" SELECT COUNT(*) FROM artists WHERE artistid is NULL""")
+
+    has_rows_songs = (""" SELECT COUNT(*) FROM songs""")
+    has_null_songs = (""" SELECT COUNT(*) FROM songs WHERE songid is NULL""")
+
+    has_rows_time = (""" SELECT COUNT(*) FROM time""")
+    has_null_time = (""" SELECT COUNT(*) FROM time WHERE start_time is NULL""") 
+
+    has_rows_users = (""" SELECT COUNT(*) FROM users""")
+    has_null_users = (""" SELECT COUNT(*) FROM users WHERE userid is NULL""") 
+
+
+
+    has_rows =  (""" SELECT COUNT(*) FROM """)

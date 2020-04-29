@@ -68,6 +68,7 @@ def createCluster():
     print('   --->> Check an Iam Role <<---   ') 
     roleArn=createRole(iam, DWH_IAM_ROLE_NAME)
     # Add roleArn in dwh.cfg #######
+    
     config.set('IAM_ROLE','ARN', roleArn)
     with open(path_cfg + 'dwh.cfg', 'w') as configfile:
         config.write(configfile)
@@ -90,32 +91,22 @@ def createCluster():
     DWH_ROLE_ARN = myClusterProps['IamRoles'][0]['IamRoleArn']
     print("DWN_ENPOINT :: ", DWH_ENDPOINT)
     print("DWH_ROLE_ARN :: ", roleArn)
+
     config.set('CLUSTER','host', DWH_ENDPOINT)
     with open(path_cfg + 'dwh.cfg', 'w') as configfile:
         config.write(configfile)
 
     try:
         vpc = ec2.Vpc(id=myClusterProps['VpcId'])
-        #defaultSg = list(vpc.security_groups.all())[4]
-        
-        #print(defaultSg)
-
-        print("******************")        
-        #filters = [{'Name':'tag:Name', 'Values':['default']}]
-        #my_list  = list(ec2.vpcs.filter(Filters=filters))
-        #print(my_list[:])
-        my_list2 = list(vpc.security_groups.filter(GroupNames=['default']))
-        print(my_list2)         
-
-        print("******************")  
-
-        my_list2.authorize_ingress(
+        #defaultSg = list(vpc.security_groups.all())[4]        
+        #print(defaultSg)      
+        defaultSg= list(vpc.security_groups.filter(GroupNames=['default']))[0]
+        defaultSg.authorize_ingress(
             GroupName='default',
             CidrIp='0.0.0.0/0',
             IpProtocol='TCP',
             FromPort=int(DWH_PORT),
-            ToPort=int(DWH_PORT))
-           
+            ToPort=int(DWH_PORT))         
 
     except Exception as e:
         print(e)

@@ -27,36 +27,6 @@ About an ETL pipeline for a data lake hosted on S3.
    - [Web-links](#web-links)
 
 
----
-## TODO  
-to create high grade data pipelines that are dynamic and built from reusable tasks, can be monitored, and allow easy backfills  
-* pipelines de données 
-    * dynamiques
-    * construits à partir de tâches réutilisables, 
-    * qui puissent être surveillés et 
-    * qui permettent un remplissage facile
-    * souhaitent effectuer des tests sur leurs ensembles de données après l'exécution des étapes de l'ETL afin de détecter toute divergence dans les ensembles de données.
-* créer vos propres opérateurs personnalisés pour effectuer des tâches :
-    * telles que la mise en scène des données, 
-    * le remplissage de l'entrepôt de données et 
-    * l'exécution de contrôles sur les données en tant qu'étape finale.  
-* fourni un modèle de projet 
-    * qui prend en charge toutes les importations et 
-    * fournit quatre opérateurs vides qui doivent être mis en œuvre dans les éléments fonctionnels d'un pipeline de données. 
-* Le modèle contient également un ensemble de tâches qui doivent être liées pour obtenir un flux de données cohérent et sensé dans le pipeline.
-* Vous disposerez d'une classe d'assistants qui contient toutes les transformations SQL. Ainsi, vous n'aurez pas besoin d'écrire l'ETL vous-même, mais vous devrez l'exécuter avec vos opérateurs personnalisés.
-![DAG](settings/image/example-dag.png)
-
-* I then went on to build an example DAG, which would allow me to pull a CSV file from S3, convert to json and then store the result within redshift. 
-* \l \c db user \du \z \q \z \d nomtable 
-
-* redshift: changer le chemin par default avant le push de `config.read_file(open(path_cfg + 'dwh.cfg'))` dans `mycluster.py` ligne 12 et 13, `myconn.py`, ligne 13 et 93, `myclusterend.py` ligne
-
-
-## DONE
-* set Docker
-    * create docker-compose.yml
----
 
 ## About The Project
 > A music streaming company, Sparkify, has decided that it is time to introduce more automation and monitoring to their data warehouse ETL pipelines and come to the conclusion that the best tool to achieve this is Apache Airflow.  
@@ -202,7 +172,7 @@ This creates hooks in Airflow that Dags can use.
 
 ## Worflow
 ### Creating a Dag To Extract Files From S3, Transform and Load Tables To Redshift database
-
+![dag1](./settings/image/dag2.png)
 #### Main DAG
 DAG :The top-level object is a Python object that defines the organization, structure and schedule of a workflow. Tasks in a specific workflow will be attached to it.
 
@@ -243,7 +213,9 @@ dag = DAG(
 )
 ```
 This creates a DAG, planned to start every hour(the beginning of an hour) from 2018-11-1. If any of its task fails, it will be retried 3 times, at 5 minutes interval.
-
+The Airflow UI gives us useful views to follow each task instance. 
+![dag1](./settings/image/dag1.png)
+![dag1](./settings/image/dag2.png)
 #### Sub DAG skeleton
 
 Task : It;s a step in the DAG, for a specific Operator. Tasks made the DAG worflow logic with dependencies.
@@ -289,6 +261,7 @@ def get_s3_to_redshift_subdag(
     copy_task >> check_staging
     return dag
 ```
+![dag1](./settings/image/stage_sub2.png)
 * `get_dimTables_to_Redshift_subdag()`
 
 The second one, run sql statements to copy fron staging tables to dimension tables and check if null values in the primary key column. 
@@ -305,7 +278,7 @@ The sql code is provide in `./plugins/helpers/sql_queries.py`
             WHERE page='NextSong'
     """)
 ```
-
+![dag1](./settings/image/dim_sub2.png)
 #### Operators
 Operator : It's a Python class to make specific operation used in a DAG. Here, I use standard operators (PostgresOperator, BashOperator) and define customize operators (StageToRedshiftOperator, DataQualityOperator, HasRowOperators)
 
@@ -340,9 +313,12 @@ class HasRowsOperator(BaseOperator):
 
 ## Web Links
 
-
-
-
 * [Go Data Friven](https://godatadriven.com/blog/the-zen-of-python-and-apache-airflow/)
 
 * [ETL best practices with Airflow](https://gtoonstra.github.io/etl-with-airflow/index.html)
+
+* [Data Modeling](https://medium.com/@rchang/a-beginners-guide-to-data-engineering-part-ii-47c4e7cbda71)
+
+* [Manage Data Pipelines](https://hackersandslackers.com/data-pipelines-apache-airflow/)
+
+* [Macro Referencce](https://airflow.apache.org/docs/stable/macros-ref)

@@ -17,6 +17,7 @@ def get_s3_to_redshift_subdag(
         aws_credentials_id,
         create_tbl,
         target_table,
+        sql_row,
         s3_bucket,
         s3_key,
         custom,
@@ -55,6 +56,7 @@ def get_s3_to_redshift_subdag(
     check_staging = HasRowsOperator(
         task_id=f"check_{target_table}_rows",
         dag=dag,
+        sql_row=sql_row,
         redshift_conn_id=redshift_conn_id,
         target_table=target_table,
     )
@@ -71,6 +73,8 @@ def get_dimTables_to_Redshift_subdag(
         create_tbl,
         target_table,
         source_table,
+        sql_row,
+        sql_quality,
         append_data,
         pk,
         *args, **kwargs):
@@ -108,6 +112,8 @@ def get_dimTables_to_Redshift_subdag(
         dag=dag,
         redshift_conn_id=redshift_conn_id,
         target_table = target_table,
+        sql_row = sql_row,
+        sql_quality = sql_quality,
         pk = pk,
     )
 

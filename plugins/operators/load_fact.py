@@ -7,17 +7,12 @@ import helpers
 
 class LoadFactOperator(BaseOperator):
     """
-    With DIMENSION and FACT operators, you can utilize the provided SQL helper class to 
-    run data transformations. Most of the logic is within the SQL transformations and 
-    the operator is expected to take as input a SQL statement and target database on 
-    which to run the query against. You can also define a target table that will contain 
-    the results of the transformation.
-
-   Avec les opérateurs DIMENSION et FACT, 
-   - classe d'aide SQL fournie pour exécuter des transformations de données. 
-   - La plupart de la logique se trouve dans les transformations SQL et 
-   - prend en entrée une instruction SQL et une base de données cible sur lesquelles exécuter la requête. 
-   - définir une table cible qui contiendra les résultats de la transformation.
+    Get data from staging tables to fact table
+    
+    :redshift_conn_id       Reshift cluster hook
+    :target_table           Fact table in redshift to receive data
+    :create_tbl             Sql statement to create fact table
+    :source                 sql statement to insert data 
     """
 
     ui_color = '#F98866'
@@ -27,7 +22,6 @@ class LoadFactOperator(BaseOperator):
                     ;
     """
 
-    
     @apply_defaults
     def __init__(self,
                  redshift_conn_id = "",
@@ -49,12 +43,17 @@ class LoadFactOperator(BaseOperator):
 
         self.log.info(f"********** Running for {self.target_table}")
 
-        # create stage table if not exists
+        # create fact table if not exists
         self.log.info('********** Create {} if not exists'.format(self.target_table))
         redshift.run(self.create_tbl)
 
+        self.log.info('********** Delete data from  {} '.format(self.target_table))
+        redshift.run("TRUNCATE TABLE {}".format(self.target_table))
+
         self.log.info("********** Inserting data into {}".format(self.target_table))
-        #redshift.run(self.create_tbl)
-     
-        redshift.run("INSERT INTO {} {}".format(self.target_table, self.source))
+        insert_formated = LoadFactOperator.insert_template.format(
+            self.target_table,
+            self.source
+        )      
+        redshift.run(insert_formated)
         self.log.info("********** LoadFactOperator end !!")

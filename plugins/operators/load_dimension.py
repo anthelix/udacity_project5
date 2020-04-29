@@ -7,31 +7,21 @@ import helpers
 
 class LoadDimensionOperator(BaseOperator):
     """
-    With DIMENSION and FACT operators, you can utilize the provided SQL helper class to 
-    run data transformations. Most of the logic is within the SQL transformations and 
-    the operator is expected to take as input a SQL statement and target database on 
-    which to run the query against. You can also define a target table that will contain 
-    the results of the transformation.
-    Dimension loads are often done with the truncate-insert pattern where the target 
-    table is emptied before the load. Thus, you could also have a parameter that allows 
-    switching between insert modes when loading dimensions. Fact tables are usually so 
-    massive that they should only allow append type functionality.
+    Get data from staging tables to dimension table
 
-   Avec les opérateurs DIMENSION et FACT, vous pouvez utiliser la classe d'aide SQL 
-   fournie pour exécuter des transformations de données. La plupart de la logique se 
-   trouve dans les transformations SQL et l'opérateur est censé prendre en entrée une 
-   instruction SQL et une base de données cible sur lesquelles exécuter la requête. 
-   Vous pouvez également définir une table cible qui contiendra les résultats de la 
-   transformation.
-   Les chargements de DIMENSION sont souvent effectués avec le modèle de troncature-insertion 
-   où la table cible est vidée avant le chargement. Ainsi, vous pouvez aussi avoir un 
-   paramètre qui permet de passer d'un mode d'insertion à l'autre lors du chargement 
-   des dimensions. Les tables de faits sont généralement si massives qu'elles ne 
-   devraient permettre que la fonctionnalité de type append.
+    :redshift_conn_id       Reshift cluster hook
+    :target_table           Fact table in redshift to receive data
+    :create_tbl             Sql statement to create dimension table
+    :source_table           sql statement to insert data 
+    :append_data            append only or truncate/append data
     """
 
     ui_color = '#80BD9E'
-
+    insert_template = """
+                    INSERT INTO {}
+                    {}
+                    ;
+    """
     @apply_defaults
     def __init__(self,
                  redshift_conn_id = "",
@@ -53,8 +43,9 @@ class LoadDimensionOperator(BaseOperator):
         # get hooks
         redshift = PostgresHook(postgres_conn_id=self.redshift_conn_id)
 
+        self.log.info(f"********** Running for {self.target_table}")
 
-        # create stage table if not exists
+        # create dim table if not exists
         self.log.info('********** Create {} if not exists'.format(self.target_table))
         redshift.run(self.create_tbl)
 
@@ -66,5 +57,7 @@ class LoadDimensionOperator(BaseOperator):
         # insert anyway
         self.log.info("********** Inserting data into {}".format(self.target_table))
  
-        redshift.run("INSERT INTO {} {}".format(self.target_table, self.source_table))
+        insert_formated = LoadDimensionOperator.insert_template.format(self.target_table, self.source_table) 
+        redshift.run(insert_formated)
+        #redshift.run("INSERT INTO {} {}".format(self.target_table, self.source_table))
         self.log.info("********** LoadDimensionOperator end !!")

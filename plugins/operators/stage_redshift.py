@@ -4,48 +4,25 @@ from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.plugins_manager import AirflowPlugin
 from helpers import CreateTables
+import time
 
 class StageToRedshiftOperator(BaseOperator):
-    """
-    The STAGE operator is expected to be able to load any JSON formatted files from S3 to 
-    Amazon Redshift. The operator creates and runs a SQL COPY statement based on the parameters
-    provided. The operator's parameters should specify where in S3 the file is loaded and what is the target table.
-    The parameters should be used to distinguish between JSON file. Another important requirement
-     of the STAGE operator is containing a templated field that allows it to load timestamped files 
-     from S3 based on the execution time and run backfills.
-
-    _ charger n'importe quel fichier au format JSON de S3 vers Amazon Redshift.
-    _ crée et exécute une instruction SQL COPY sur la base des paramètres fournis. 
-    _ Les paramètres de l'opérateur doivent 
-        _ préciser où le fichier est chargé en S3 et 
-        _ quelle est la table cible.
-    _ Les paramètres doivent être utilisés pour distinguer les fichiers JSON. 
-    _ l'opérateur STAGE est de contenir un champ de modèle qui lui permet de 
-        _ charger des fichiers horodatés à partir de S3 en fonction du temps d'exécution 
-        _ exécuter des remplissages.
-
-    """
     """
     Extract JSON data from s3Bucket to redshift staging tables.
 
     :s3_key                 Source s3Bucket prefix
-    :arn_iam_role           AWS arn iam_role with permission to read data from s3
-    :aws_region                 AWS region where is the redshift cluster
+    :aws_region             AWS region where is the redshift cluster
     :json_format            Source json format
     :redshift_conn_id       Reshift cluster hook
     :aws_credentials_id     AWS iam hook
+    :create_tbl             Sql statement to create staging tables
     :target_table           Tables staging in redshift to receive data
     :s3_bucket              Source s3Bucket
-
-
-
+    :custom                 parameters to complete the copy query
     """
     ui_color = '#358140'
 
-    # templated field to formated strings
-    ## s3_key = 'song_data' and 'log_data/{execution_date.year}/{execution_date.month}/{ds}-events.json
-    ## execution_date.year, execution_date.month, ds are context variables
-    template_fields     = ("s3_key",)
+    template_fields     = ("s3_key", )
 
     # templated copy_sql statement
     copy_query_template = """
@@ -79,7 +56,7 @@ class StageToRedshiftOperator(BaseOperator):
 
 
     def execute(self, context):
-        self.log.info('**********  StageToRedshiftOperator is processing')
+        self.log.info('********** StageToRedshiftOperator is processing')
 
         # get hooks
         aws_hook = AwsHook(self.aws_credentials_id)
@@ -87,12 +64,20 @@ class StageToRedshiftOperator(BaseOperator):
         credentials = aws_hook.get_credentials()
         
         # clear target_table in redshift
-        dropTable = CreateTables.dropTable(self.target_table)
-        redshift_hook.run(dropTable)
+        #dropTable = CreateTables.dropTable(self.target_table)
+        #redshift_hook.run(dropTable)
+
+        # clear data from table
+
 
         # create stage table if not exists
         self.log.info('********** Create {} if not exists'.format(self.target_table))
-        redshift_hook.run(self.create_tbl)        
+        redshift_hook.run(self.create_tbl)     
+        time.sleep(10)   
+        self.log.info(f"********** {self.target_table} create after 10 secondes  !!!!")
+
+        self.log.info('********** Delete data from {} '.format(self.target_table))
+        redshift_hook.run(f"TRUNCATE {self.target_table}")
 
         # copy data from s3 to redshift
         self.log.info('********** Copying data from s3 to Redshift in ' + self.target_table)

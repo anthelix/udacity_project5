@@ -16,5 +16,3 @@ COPY settings/airflow.cfg /usr/local/airflow/airflow.cfg
 
 
 USER airflow
-RUN mkdir -p ~/.aws
-
