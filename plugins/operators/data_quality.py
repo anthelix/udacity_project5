@@ -80,3 +80,39 @@ class DataQualityOperator(BaseOperator):
 
 
 
+"""
+You may also pass an array of checks and runs them in a loop. Check the code review for some examples. 
+for i, query in enumerate(self.test_queries):
+    rows = redshift_hook.get_records(query)
+    ....
+
+You can also pass an array of checks and runs them in a loop.
+
+
+  def execute(self, context):
+        # AWS Hook
+        aws_hook = AwsHook(self.aws_credentials_id)
+        credentials = aws_hook.get_credentials()
+        # RedShift Hook
+        redshift = PostgresHook(postgres_conn_id=self.redshift_conn_id)
+
+        # Test each table
+        for table_dict in self.table_info_dict:
+            table_name = table_dict["table_name"]
+            column_that_should_not_be_null = table_dict["not_null"]
+            # Check number of records (pass if > 0, else fail)
+            records = redshift.get_records(f"SELECT COUNT(*) FROM {table_name}")
+            if len(records) < 1 or len(records[0]) < 1:
+                raise ValueError(f"Data quality check failed. {table_name} returned no results")
+            elif records[0][0] < 1:
+                raise ValueError(f"Data quality check failed. {table_name} contained 0 rows")
+            else:
+                # Now check is NOT NULL columns contain NULL
+                null_records = redshift.get_records(f"SELECT COUNT(*) FROM {table_name} WHERE {column_that_should_not_be_null} IS NULL")
+                if null_records[0][0] > 0:
+                    col = column_that_should_not_be_null
+                    raise ValueError(f"Data quality check failed. {table_name} contained {null_records[0][0]} null records for {col}")
+                else:
+                    self.log.info(f"Data quality on table {table_name} check passed with {records[0][0]} records")
+
+"""

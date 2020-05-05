@@ -61,3 +61,52 @@ class LoadDimensionOperator(BaseOperator):
         redshift.run(insert_formated)
         #redshift.run("INSERT INTO {} {}".format(self.target_table, self.source_table))
         self.log.info("********** LoadDimensionOperator end !!")
+
+
+"""
+Dimension loads are often done with the truncate-insert pattern where the target table is emptied before the load. Thus, having a parameter that allows switching between insert modes when loading dimensions. Fact tables are usually so massive that they should only allow append type functionality. That is why there is a need to check for parameter value passed and if it says delete before insertion, delete the values from table before insertion or append otherwise.
+An ideal condition could be:
+If operation truncate: Delete and then insert the values in the dimension table
+If operation append: Only insert in the dimension table
+
+
+
+
+class LoadDimensionOperator(BaseOperator):
+    
+    ui_color = '#80BD9E'
+    load_dimension_table_insert = 
+    
+        INSERT INTO {} {}
+    
+
+    load_dimension_table_truncate = 
+
+        TRUNCATE TABLE {} 
+    
+    @apply_defaults
+    def __init__(self,
+                 query="",
+                 redshift_conn_id="",
+                 t_name="",
+                 operation="",
+                 *args, **kwargs):
+
+        super(LoadDimensionOperator, self).__init__(*args, **kwargs)
+        self.query=query
+        self.redshift_conn_id=redshift_conn_id
+        self.t_name=t_name
+        self.operation=operation
+
+    def execute(self, context):
+        self.log.info(f"Started LoadDimensionOperator {self.t_name} started with mode {self.operation} ")
+        redshift_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
+
+        if(self.operation == "append"):
+            redshift_hook.run(LoadDimensionOperator.load_dimension_table_insert.format(self.t_name, self.query)) 
+        if(self.operation == "truncate"):
+            redshift_hook.run(LoadDimensionOperator.load_dimension_table_truncate.format(self.t_name)) 
+            redshift_hook.run(LoadDimensionOperator.load_dimension_table_insert.format(self.t_name, self.query)) 
+        self.log.info(f"Ending LoadDimensionOperator {self.t_name} with a Success on Operation  {self.operation}")
+
+"""

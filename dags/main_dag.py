@@ -34,11 +34,11 @@ default_args = {
 #AWS_SECRET = os.environ.get('AWS_SECRET')
 
 dag = DAG(
-    'ETL_Sparkify_t3',
+    'ETL_Sparkify_0',
     default_args=default_args,
     description='ETL from S3 to Redshift with Airflow',
-    schedule_interval='@hourly', # schedule_interval='0 * * * *'
-    max_active_runs=1
+    schedule_interval='@daily', # TODO: schedule_interval='0 * * * * or @hourly'
+    max_active_runs=2
 )
 
 ####################################################################################
@@ -52,7 +52,7 @@ start_operator = DummyOperator(task_id='Begin_execution',  dag=dag)
 staging_songs_task_id = "staging_songs_subdag"
 staging_songs_task = SubDagOperator(
     subdag=get_s3_to_redshift_subdag(
-        "ETL_Sparkify_t3",                          #name parent dag
+        "ETL_Sparkify_0",                          #name parent dag
         staging_songs_task_id,                      #task_id
         "redshift",                                 #redshift_conn_id
         "aws_credential",                           #aws_credentials_id
@@ -65,13 +65,14 @@ staging_songs_task = SubDagOperator(
         start_date=datetime.datetime(2018, 11, 1, 0, 0, 0, 0),
     ),
     task_id=staging_songs_task_id,
+    depends_on_past=True,
     dag=dag
 )
 #Taks to create, insert from s3_bucket/udacity-dend/log_data and check staging events table
 staging_events_task_id = "staging_events_subdag"
 staging_events_task = SubDagOperator(
     subdag=get_s3_to_redshift_subdag(
-        "ETL_Sparkify_t3",                          #name parent dag
+        "ETL_Sparkify_0",                          #name parent dag
         staging_events_task_id,                     #task_id
         "redshift",                                 #redshift_conn_id
         "aws_credential",                           #aws_credentials_id
@@ -79,11 +80,12 @@ staging_events_task = SubDagOperator(
         target_table="staging_events",                           #target_table
         sql_row=SqlQueries.has_rows,                        #count rows
         s3_bucket= "udacity-dend",
-        s3_key= "log_data",
+        s3_key= "log_data/{execution_date.year}/{execution_date.month}/{ds}-events.json",
         custom="format as json 's3://udacity-dend/log_json_path.json'",
         start_date=datetime.datetime(2018, 11, 1, 0, 0, 0, 0),
     ),
     task_id=staging_events_task_id,
+    depends_on_past=True,
     dag=dag
 )
 
@@ -117,7 +119,7 @@ check_songplays_quality = DataQualityOperator(
 load_artists_dimension_table_id = "load_artists_dimension_table_subdag"
 load_artists_dimension_table_task = SubDagOperator(
     subdag=get_dimTables_to_Redshift_subdag(
-        "ETL_Sparkify_t3", #name parent dag
+        "ETL_Sparkify_0", #name parent dag
         load_artists_dimension_table_id, #task_id
         "redshift", #redshift_conn_id
         create_tbl=CreateTables.artist_table_create, # create_tbl
@@ -136,7 +138,7 @@ load_artists_dimension_table_task = SubDagOperator(
 load_songs_dimension_table_id = "load_songs_dimension_table_subdag"
 load_songs_dimension_table_task = SubDagOperator(
     subdag=get_dimTables_to_Redshift_subdag(
-        "ETL_Sparkify_t3", #name parent dag
+        "ETL_Sparkify_0", #name parent dag
         load_songs_dimension_table_id, #task_id
         "redshift", #redshift_conn_id
         create_tbl=CreateTables.song_table_create, # create_tbl
@@ -155,7 +157,7 @@ load_songs_dimension_table_task = SubDagOperator(
 load_time_dimension_table_id = "load_time_dimension_table_subdag"
 load_time_dimension_table_task = SubDagOperator(
     subdag=get_dimTables_to_Redshift_subdag(
-        "ETL_Sparkify_t3", #name parent dag
+        "ETL_Sparkify_0", #name parent dag
         load_time_dimension_table_id, #task_id
         "redshift", #redshift_conn_id
         create_tbl=CreateTables.time_table_create, # create_tbl
@@ -174,7 +176,7 @@ load_time_dimension_table_task = SubDagOperator(
 load_users_dimension_table_id = "load_users_dimension_table_subdag"
 load_users_dimension_table_task = SubDagOperator(
     subdag=get_dimTables_to_Redshift_subdag(
-        "ETL_Sparkify_t3", #name parent dag
+        "ETL_Sparkify_0", #name parent dag
         load_users_dimension_table_id, #task_id
         "redshift", #redshift_conn_id
         create_tbl=CreateTables.user_table_create, # 

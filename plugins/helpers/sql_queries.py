@@ -75,3 +75,12 @@ class SqlQueries:
 
 
     has_rows =  (""" SELECT COUNT(*) FROM """)
+
+""""
+sql_template = "" SELECT * FROM {} WHERE {} IS NULL""
+myTask1 = YourOperator(
+    task_id='templated_one',
+    sql=sql_template.format("table1", "col1"),
+    dag=dag,
+)
+"""

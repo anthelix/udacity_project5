@@ -73,19 +73,17 @@ class StageToRedshiftOperator(BaseOperator):
         # create stage table if not exists
         self.log.info('********** Create {} if not exists'.format(self.target_table))
         redshift_hook.run(self.create_tbl)     
-        time.sleep(10)   
-        self.log.info(f"********** {self.target_table} create after 10 secondes  !!!!")
 
         self.log.info('********** Delete data from {} '.format(self.target_table))
         redshift_hook.run(f"TRUNCATE {self.target_table}")
 
         # copy data from s3 to redshift
         self.log.info('********** Copying data from s3 to Redshift in ' + self.target_table)
-        #rendered_key = self.s3_key.format(**context)
         #self.log.info(f"**********  {rendered_key}")
+        formated_key = self.s3_key.format(**context)
 
         #self.log.info(f'rendered_key : {rendered_key}')
-        s3_path = "s3://" + self.s3_bucket + "/" + self.s3_key
+        s3_path = "s3://" + self.s3_bucket + "/" + formated_key
         self.log.info(f"********** {s3_path}")
 
         copy_formated = StageToRedshiftOperator.copy_query_template.format(
@@ -102,4 +100,29 @@ class StageToRedshiftOperator(BaseOperator):
 
 
 
+"""
+You can also add a condition to test the file type if it is JSON or CSV:
 
+def execute(self, context):
+
+        if not (self.file_format == 'csv' or self.file_format == 'json'):
+            raise ValueError(f"file format {self.file_format} is not csv or json")
+        if self.file_format == 'json':
+
+            file_format = "format json '{}'".format(self.json_path)
+        else:
+            file_format = "format CSV"
+        aws_hook = AwsHook(self.aws_conn_id)
+        credentials = aws_hook.get_credentials()
+        redshift = PostgresHook(postgres_conn_id = self.redshift_conn_id)
+
+        staging_to_redshift_sql = StageToRedshiftOperator.copysql.format(table_name = self.table_name,
+            path = self.table_path,aws_key = credentials.access_key,aws_secret = credentials.secret_key,file_format =file_format)
+
+        self.log.info("Clearing data from destination Redshift table")
+        redshift.run("DELETE FROM {};".format(self.table_name))
+
+        self.log.info(f'now loading {self.table_name} to redshift...')
+        redshift.run(staging_to_redshift_sql)
+        self.log.info(f'{self.table_name} loaded...')
+"""
